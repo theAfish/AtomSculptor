@@ -111,6 +111,56 @@ What it does:
 
 ---
 
+## Code-Graph-RAG Integration
+
+AtomSculptor now includes integrated code analysis capabilities using graph-based RAG (Retrieval-Augmented Generation).
+
+### Quick Setup
+
+1. **Install with all dependencies**:
+   ```bash
+   ./install.sh
+   ```
+   Or manually:
+   ```bash
+   pip install -e .
+   pip install -e ".[treesitter-full]"  # Optional: full language support
+   ```
+
+2. **Start Memgraph** (required for code analysis):
+   ```bash
+   docker run -d -p 7687:7687 -p 7444:7444 -p 3000:3000 \
+     memgraph/memgraph-platform
+   ```
+
+3. **Configure API keys** in `.env` (copy from `.env.example`):
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your API keys
+   ```
+
+### New Code Analyzer Agent
+
+The `code_analyzer` agent is now available alongside `structure_builder` and `mp_searcher`:
+
+```python
+# Ask the planner to analyze code
+"Analyze the structure of the agent_team module"
+
+# Find specific functions
+"Find the code for the create_plan function"
+
+# Analyze dependencies
+"What modules does the planner agent import?"
+
+# Search for patterns
+"Search for all classes that inherit from Agent"
+```
+
+For detailed documentation, see [CODE_GRAPH_INTEGRATION.md](CODE_GRAPH_INTEGRATION.md).
+
+---
+
 ## Useful files
 
 - `agent_team/agent.py` — root ADK agent wiring

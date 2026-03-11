@@ -3,8 +3,42 @@
 
 # model used by the planner agent
 PLANNER_MODEL: "openai/qwen3-max"
-STRUCTURE_BUILDER_MODEL: "openai/qwen-plus"
+STRUCTURE_BUILDER_MODEL: "openai/qwen3-max"
 MP_SEARCHER_MODEL: "openai/qwen3-max"
+CODE_ANALYZER_MODEL: "openai/qwen3-max"
 
 # local directory used by sandbox runtime wrapper
 SANDBOX_DIR: "sandbox/runtime"
+
+# ======== Code-graph-rag / Memgraph settings ========
+MEMGRAPH_HOST: "localhost"
+MEMGRAPH_PORT: 7687
+MEMGRAPH_HTTP_PORT: 7444
+LAB_PORT: 3000
+
+# LLM provider configuration for code-graph-rag
+LLM_PROVIDER: "openai"  # Options: gemini, local, deepseek, openai
+# GEMINI_PROVIDER: "gla"  # Options: gla, vertex
+
+# ==== Model IDs ====
+# GEMINI_MODEL_ID: "gemini-2.5-pro"
+# GEMINI_VISION_MODEL_ID: "gemini-2.5-flash"
+# MODEL_CYPHER_ID: "gemini-2.5-flash-lite-preview-06-17"
+# DEEPSEEK_MODEL_ID: "deepseek-chat"
+OPENAI_ORCHESTRATOR_MODEL_ID: "qwen3-max"
+OPENAI_CYPHER_MODEL_ID: "qwen3-max"
+
+# ==== GCP Settings (for Vertex AI) ====
+# GCP_REGION: "us-central1"
+
+# ==== Local model settings (for Ollama) ====
+# LOCAL_MODEL_ENDPOINT: "http://localhost:11434/v1"
+# LOCAL_ORCHESTRATOR_MODEL_ID: "llama3"
+# LOCAL_CYPHER_MODEL_ID: "llama3"
+# LOCAL_MODEL_API_KEY: "ollama"
+
+# Shell command timeout for code-graph-rag file operations
+SHELL_COMMAND_TIMEOUT: 30
+
+# Target repository path for code analysis (optional, defaults to current workspace)
+TARGET_REPO_PATH: "../structure_codes"

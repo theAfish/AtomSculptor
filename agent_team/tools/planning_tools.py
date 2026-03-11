@@ -130,7 +130,7 @@ def complete_task(task_id: int, result=None):
         return {
             "message": f"Task {task_id} completed."
         }
-    except ValueError as e:
+    except Exception as e:
         return {
             "error": str(e)
         }

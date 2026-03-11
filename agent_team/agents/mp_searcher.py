@@ -2,7 +2,7 @@
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
 
-
+from agent_team.tools.code_graph_tools import ask_code_graph_local
 from sandbox.tools import (
     sandbox_create_directory,
     sandbox_delete_path,
@@ -31,6 +31,7 @@ mp_searcher = Agent(
     description=agent_description,
     instruction=agent_instruction,
     tools=[
+        ask_code_graph_local,
         sandbox_status,
         sandbox_list_files,
         sandbox_read_file,

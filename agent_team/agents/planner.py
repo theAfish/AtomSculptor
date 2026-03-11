@@ -22,10 +22,9 @@ from agent_team.agents.structure_builder import structure_builder
 from agent_team.agents.mp_searcher import mp_searcher
 
 
-
-agent_description = "Planner that manages a specialized team of agents for materials science tasks."
+agent_description = "Planner that manages a specialized team of agents for materials science and code analysis tasks."
 agent_instruction = """
-You are the Planner orchestrating a specialized team for materials science research. You have two specialist sub-agents available:
+You are the Planner orchestrating a specialized team for materials science research and code analysis. You have three specialist sub-agents available:
 - **structure_builder**: For building and manipulating atomic structures using ASE
 - **mp_searcher**: For searching and downloading materials from Materials Project
 

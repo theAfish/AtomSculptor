@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 import yaml
+from dotenv import load_dotenv
 
 
 def _load_project_dotenv(dotenv_path: Path) -> None:
@@ -45,6 +46,7 @@ class Settings:
 
     def __init__(self, config_path: str | Path | None = None) -> None:
         _load_project_dotenv(Path(__file__).resolve().parent / ".env")
+        load_dotenv()  # Additional load for code-graph-rag compatibility
 
         # allow the path to be overridden by environment (useful for tests)
         if config_path is None:
@@ -59,7 +61,7 @@ class Settings:
                 if isinstance(loaded, dict):
                     self._data = loaded
 
-        # set defaults and pull from environment if available
+        # AtomSculptor settings
         self.PLANNER_MODEL = os.environ.get(
             "PLANNER_MODEL", self._data.get("PLANNER_MODEL", "openai/qwen3-max")
         )
@@ -69,8 +71,104 @@ class Settings:
         self.MP_SEARCHER_MODEL = os.environ.get(
             "MP_SEARCHER_MODEL", self._data.get("MP_SEARCHER_MODEL", "openai/qwen3-max")
         )
+        self.CODE_ANALYZER_MODEL = os.environ.get(
+            "CODE_ANALYZER_MODEL", self._data.get("CODE_ANALYZER_MODEL", "openai/qwen3-max")
+        )
         self.SANDBOX_DIR = os.environ.get(
             "SANDBOX_DIR", self._data.get("SANDBOX_DIR", "sandbox/runtime")
+        )
+
+        # Code-graph-rag settings
+        self.MEMGRAPH_HOST = os.environ.get(
+            "MEMGRAPH_HOST", self._data.get("MEMGRAPH_HOST", "localhost")
+        )
+        self.MEMGRAPH_PORT = int(os.environ.get(
+            "MEMGRAPH_PORT", self._data.get("MEMGRAPH_PORT", 7687)
+        ))
+        self.MEMGRAPH_HTTP_PORT = int(os.environ.get(
+            "MEMGRAPH_HTTP_PORT", self._data.get("MEMGRAPH_HTTP_PORT", 7444)
+        ))
+        self.LAB_PORT = int(os.environ.get(
+            "LAB_PORT", self._data.get("LAB_PORT", 3000)
+        ))
+        
+        self.LLM_PROVIDER: Literal["gemini", "local", "deepseek", "openai"] = os.environ.get(
+            "LLM_PROVIDER", self._data.get("LLM_PROVIDER", "openai")
+        )
+        self.GEMINI_PROVIDER: Literal["gla", "vertex"] = os.environ.get(
+            "GEMINI_PROVIDER", self._data.get("GEMINI_PROVIDER", "gla")
+        )
+        
+        self.GEMINI_MODEL_ID = os.environ.get(
+            "GEMINI_MODEL_ID", self._data.get("GEMINI_MODEL_ID", "gemini-2.5-pro")
+        )
+        self.GEMINI_VISION_MODEL_ID = os.environ.get(
+            "GEMINI_VISION_MODEL_ID", self._data.get("GEMINI_VISION_MODEL_ID", "gemini-2.5-flash")
+        )
+        self.MODEL_CYPHER_ID = os.environ.get(
+            "MODEL_CYPHER_ID", self._data.get("MODEL_CYPHER_ID", "gemini-2.5-flash-lite-preview-06-17")
+        )
+        self.GEMINI_API_KEY = os.environ.get(
+            "GEMINI_API_KEY", self._data.get("GEMINI_API_KEY")
+        )
+        self.GEMINI_THINKING_BUDGET = os.environ.get(
+            "GEMINI_THINKING_BUDGET", self._data.get("GEMINI_THINKING_BUDGET")
+        )
+        
+        self.GCP_PROJECT_ID = os.environ.get(
+            "GCP_PROJECT_ID", self._data.get("GCP_PROJECT_ID")
+        )
+        self.GCP_REGION = os.environ.get(
+            "GCP_REGION", self._data.get("GCP_REGION", "us-central1")
+        )
+        self.GCP_SERVICE_ACCOUNT_FILE = os.environ.get(
+            "GCP_SERVICE_ACCOUNT_FILE", self._data.get("GCP_SERVICE_ACCOUNT_FILE")
+        )
+        
+        self.DEEPSEEK_MODEL_ID = os.environ.get(
+            "DEEPSEEK_MODEL_ID", self._data.get("DEEPSEEK_MODEL_ID", "deepseek-chat")
+        )
+        self.DEEPSEEK_API_KEY = os.environ.get(
+            "DEEPSEEK_API_KEY", self._data.get("DEEPSEEK_API_KEY")
+        )
+
+        self.OPENAI_ORCHESTRATOR_MODEL_ID = os.environ.get(
+            "OPENAI_ORCHESTRATOR_MODEL_ID",
+            self._data.get("OPENAI_ORCHESTRATOR_MODEL_ID", "qwen3-max"),
+        )
+        self.OPENAI_CYPHER_MODEL_ID = os.environ.get(
+            "OPENAI_CYPHER_MODEL_ID",
+            self._data.get("OPENAI_CYPHER_MODEL_ID", "qwen3-max"),
+        )
+        
+        self.LOCAL_MODEL_ENDPOINT = os.environ.get(
+            "LOCAL_MODEL_ENDPOINT", self._data.get("LOCAL_MODEL_ENDPOINT", "http://localhost:11434/v1")
+        )
+        self.LOCAL_ORCHESTRATOR_MODEL_ID = os.environ.get(
+            "LOCAL_ORCHESTRATOR_MODEL_ID", self._data.get("LOCAL_ORCHESTRATOR_MODEL_ID", "llama3")
+        )
+        self.LOCAL_CYPHER_MODEL_ID = os.environ.get(
+            "LOCAL_CYPHER_MODEL_ID", self._data.get("LOCAL_CYPHER_MODEL_ID", "llama3")
+        )
+        self.LOCAL_MODEL_API_KEY = os.environ.get(
+            "LOCAL_MODEL_API_KEY", self._data.get("LOCAL_MODEL_API_KEY", "ollama")
+        )
+        
+        self.TARGET_REPO_PATH = os.environ.get(
+            "TARGET_REPO_PATH", self._data.get("TARGET_REPO_PATH")
+        )
+        self.SHELL_COMMAND_TIMEOUT = int(os.environ.get(
+            "SHELL_COMMAND_TIMEOUT", self._data.get("SHELL_COMMAND_TIMEOUT", 30)
+        ))
+        
+        self.MP_API_KEY = os.environ.get(
+            "MP_API_KEY", self._data.get("MP_API_KEY")
+        )
+        self.OPENAI_API_KEY = os.environ.get(
+            "OPENAI_API_KEY", self._data.get("OPENAI_API_KEY")
+        )
+        self.OPENAI_API_BASE = os.environ.get(
+            "OPENAI_API_BASE", self._data.get("OPENAI_API_BASE")
         )
 
     def get_sandbox_client_kwargs(self) -> Dict[str, Any]:

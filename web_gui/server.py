@@ -162,6 +162,25 @@ def _is_path_safe(requested: Path, root: Path) -> bool:
         return False
 
 
+async def _send_json_or_stop(websocket: WebSocket, payload: dict) -> bool:
+    try:
+        await websocket.send_json(payload)
+        return True
+    except WebSocketDisconnect:
+        return False
+    except RuntimeError as exc:
+        if 'Cannot call "send" once a close message has been sent.' in str(exc):
+            return False
+        raise
+
+
+async def _close_websocket_quietly(websocket: WebSocket) -> None:
+    try:
+        await websocket.close()
+    except (RuntimeError, WebSocketDisconnect):
+        pass
+
+
 # 3Dmol.js natively understands these formats
 _THREEMOL_NATIVE = {"xyz", "cif", "pdb", "sdf", "mol2"}
 _EXT_TO_FMT = {
@@ -250,16 +269,25 @@ async def ws_chat(websocket: WebSocket):
             session, "session_id", f"ws_{id(websocket)}"
         )
     except Exception as exc:
-        await websocket.send_json({"type": "error", "text": f"Session error: {exc}"})
-        await websocket.close()
+        if await _send_json_or_stop(
+            websocket, {"type": "error", "text": f"Session error: {exc}"}
+        ):
+            await _close_websocket_quietly(websocket)
         return
 
     # Push initial state
-    await websocket.send_json({"type": "todo_flow_update", "data": _serialize_todo_flow()})
-    await websocket.send_json({
-        "type": "files_update",
-        "data": _build_file_tree(_sandbox_root(), _sandbox_root()),
-    })
+    if not await _send_json_or_stop(
+        websocket, {"type": "todo_flow_update", "data": _serialize_todo_flow()}
+    ):
+        return
+    if not await _send_json_or_stop(
+        websocket,
+        {
+            "type": "files_update",
+            "data": _build_file_tree(_sandbox_root(), _sandbox_root()),
+        },
+    ):
+        return
 
     try:
         while True:
@@ -272,11 +300,15 @@ async def ws_chat(websocket: WebSocket):
                     continue
 
                 # Echo user message
-                await websocket.send_json({
-                    "type": "user_message",
-                    "text": user_text,
-                    "timestamp": _now(),
-                })
+                if not await _send_json_or_stop(
+                    websocket,
+                    {
+                        "type": "user_message",
+                        "text": user_text,
+                        "timestamp": _now(),
+                    },
+                ):
+                    return
 
                 try:
                     content = types.Content(
@@ -289,36 +321,60 @@ async def ws_chat(websocket: WebSocket):
                         new_message=content,
                     ):
                         for msg in _event_to_messages(event):
-                            await websocket.send_json(msg)
-                        await websocket.send_json({
-                            "type": "todo_flow_update",
-                            "data": _serialize_todo_flow(),
-                        })
+                            if not await _send_json_or_stop(websocket, msg):
+                                return
+                        if not await _send_json_or_stop(
+                            websocket,
+                            {
+                                "type": "todo_flow_update",
+                                "data": _serialize_todo_flow(),
+                            },
+                        ):
+                            return
 
                     # Agent turn finished
-                    await websocket.send_json({"type": "done"})
-                    await websocket.send_json({
-                        "type": "files_update",
-                        "data": _build_file_tree(_sandbox_root(), _sandbox_root()),
-                    })
+                    if not await _send_json_or_stop(websocket, {"type": "done"}):
+                        return
+                    if not await _send_json_or_stop(
+                        websocket,
+                        {
+                            "type": "files_update",
+                            "data": _build_file_tree(_sandbox_root(), _sandbox_root()),
+                        },
+                    ):
+                        return
+                except WebSocketDisconnect:
+                    return
                 except Exception as exc:
-                    await websocket.send_json({
-                        "type": "error",
-                        "text": str(exc),
-                        "traceback": traceback.format_exc(),
-                    })
+                    if not await _send_json_or_stop(
+                        websocket,
+                        {
+                            "type": "error",
+                            "text": str(exc),
+                            "traceback": traceback.format_exc(),
+                        },
+                    ):
+                        return
 
             elif kind == "refresh_files":
-                await websocket.send_json({
-                    "type": "files_update",
-                    "data": _build_file_tree(_sandbox_root(), _sandbox_root()),
-                })
+                if not await _send_json_or_stop(
+                    websocket,
+                    {
+                        "type": "files_update",
+                        "data": _build_file_tree(_sandbox_root(), _sandbox_root()),
+                    },
+                ):
+                    return
 
             elif kind == "refresh_todo":
-                await websocket.send_json({
-                    "type": "todo_flow_update",
-                    "data": _serialize_todo_flow(),
-                })
+                if not await _send_json_or_stop(
+                    websocket,
+                    {
+                        "type": "todo_flow_update",
+                        "data": _serialize_todo_flow(),
+                    },
+                ):
+                    return
 
     except WebSocketDisconnect:
         pass

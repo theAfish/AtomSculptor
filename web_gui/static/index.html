@@ -596,6 +596,15 @@ function initViewer(){
     id:'mol-viewer',
   });
   S.viewerReady=true;
+
+  // Intercept scroll before 3Dmol's canvas listener and invert zoom direction
+  el.addEventListener('wheel', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    if(!S.viewerReady) return;
+    // Inverted: scroll up (negative deltaY) → zoom in, scroll down → zoom out
+    S.viewer.zoom(e.deltaY < 0 ? 1.1 : 0.9, 0);
+  }, {passive: false, capture: true});
 }
 
 async function loadStructure(path){

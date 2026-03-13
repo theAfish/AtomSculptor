@@ -2,10 +2,10 @@
 # you can also override any of these values with environment variables
 
 # model used by the planner agent
-PLANNER_MODEL: "openai/qwen3-max"
-STRUCTURE_BUILDER_MODEL: "openai/qwen3-max"
-MP_SEARCHER_MODEL: "openai/qwen3-max"
-CODE_ANALYZER_MODEL: "openai/qwen3-max"
+PLANNER_MODEL: "openai/glm-5"
+STRUCTURE_BUILDER_MODEL: "openai/glm-5"
+MP_SEARCHER_MODEL: "openai/glm-5"
+CODE_ANALYZER_MODEL: "openai/glm-5"
 
 # local directory used by sandbox runtime wrapper
 SANDBOX_DIR: "sandbox/runtime"
@@ -25,8 +25,8 @@ LLM_PROVIDER: "openai"  # Options: gemini, local, deepseek, openai
 # GEMINI_VISION_MODEL_ID: "gemini-2.5-flash"
 # MODEL_CYPHER_ID: "gemini-2.5-flash-lite-preview-06-17"
 # DEEPSEEK_MODEL_ID: "deepseek-chat"
-OPENAI_ORCHESTRATOR_MODEL_ID: "qwen3-max"
-OPENAI_CYPHER_MODEL_ID: "qwen3-max"
+OPENAI_ORCHESTRATOR_MODEL_ID: "glm-5"
+OPENAI_CYPHER_MODEL_ID: "glm-5"
 
 # ==== GCP Settings (for Vertex AI) ====
 # GCP_REGION: "us-central1"

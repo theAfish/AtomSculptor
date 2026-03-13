@@ -22,6 +22,7 @@ from sandbox.tools import (
 )
 from agent_team.tools.planning_tools import (
     complete_task,
+    start_task,
     get_plan_summary,
     is_plan_finished,
 )
@@ -47,6 +48,8 @@ Also, you can ask the code graph for usage about packages like PyMatgen, ASE, RD
 If you are not sure, or get errors while writing codes, ask the code graph for help.
 
 If you need material structures during your work, request them from the MP Searcher or Planner (you are being called by the planner, so communicate any additional needs).
+
+When invoking tools, arguments must be strict JSON with double-quoted keys and string values.
 """
 
 
@@ -72,6 +75,7 @@ structure_builder = Agent(
         # sandbox_delete_path,
         sandbox_run_command,
         get_plan_summary,
+        start_task,
         complete_task,
         is_plan_finished,
     ],

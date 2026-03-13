@@ -4,6 +4,7 @@ from google.adk.models.lite_llm import LiteLlm
 
 from sandbox.tools import (
     sandbox_status,
+    sandbox_run_command,
 )
 from agent_team.tools.state_management_tools import (
     change_state,
@@ -30,6 +31,10 @@ agent_instruction = """
 You are the Planner orchestrating a specialized team for materials science research and code analysis. You have three specialist sub-agents available:
 - **structure_builder**: For building and manipulating atomic structures using ASE
 - **mp_searcher**: For searching and downloading materials from Materials Project
+
+When invoking tools, arguments must be valid JSON.
+- Use double quotes for every object key and every string value.
+- Never emit Python dict syntax such as {'task': 'value'}.
 
 **Decision Making:**
 1. For simple queries or general conversation: Respond directly WITHOUT changing workflow state.
@@ -60,6 +65,7 @@ planner = Agent(
     instruction=agent_instruction,
     tools=[
         sandbox_status,
+        sandbox_run_command,
         change_state,
         reset_plan,
         create_plan,

@@ -7,8 +7,8 @@ from typing import Optional
 from ase import Atoms
 from ase.build import surface, make_supercell
 from ase.data import covalent_radii
-from ase.geometry import get_distances
 from ase.io import read, write
+from ase.neighborlist import neighbor_list
 from ase.visualize.plot import plot_atoms
 import matplotlib.pyplot as plt
 import numpy as np
@@ -252,37 +252,37 @@ def check_close_atoms(folder: str, file_name: str, tolerance: float = -0.5) -> d
     Checks for atoms that are too close to each other, using covalent radii plus tolerance. 
     This tool is useful for validating structures.
     """
+    print("loading atoms")
     atoms = _load_atoms(folder, file_name)
+    print("atoms loaded")
     if isinstance(atoms, dict) and "error" in atoms:
         return atoms
-    
-    positions = atoms.positions
-    cell = atoms.cell
-    pbc = atoms.pbc
-    
-    distances, indices = get_distances(positions, cell=cell, pbc=pbc)
-    
+
+    print("calculating neighbor list")
+    radii = np.array([covalent_radii[a.number] for a in atoms])
+    cutoff = float(radii.max() * 2 + tolerance)
+    i, j, d = neighbor_list("ijd", atoms, cutoff)
+
+    # Keep each pair once to preserve the original API's i < j behavior.
+    pair_mask = i < j
+    close_mask = d < (radii[i] + radii[j] + tolerance)
+    mask = pair_mask & close_mask
+    print(f"found {mask.sum()} close pairs")
     close_pairs = []
-    for i in range(len(atoms)):
-        for j in range(i+1, len(atoms)):
-            dist_vector = distances[i, j]
-            dist = float(np.linalg.norm(dist_vector))
-            r1 = covalent_radii[atoms[i].number]
-            r2 = covalent_radii[atoms[j].number]
-            min_dist = r1 + r2 + tolerance
-            if dist < min_dist:
-                close_pairs.append({
-                    "atom1": {
-                        "index": i,
-                        "symbol": atoms[i].symbol,
-                    },
-                    "atom2": {
-                        "index": j,
-                        "symbol": atoms[j].symbol,
-                    },
-                    "distance_angstrom": round(dist, 3),
-                    "min_distance_angstrom": round(float(min_dist), 3),
-                })
+    for idx1, idx2, dist in zip(i[mask], j[mask], d[mask]):
+        min_dist = radii[idx1] + radii[idx2] + tolerance
+        close_pairs.append({
+            "atom1": {
+                "index": int(idx1),
+                "symbol": atoms[int(idx1)].symbol,
+            },
+            "atom2": {
+                "index": int(idx2),
+                "symbol": atoms[int(idx2)].symbol,
+            },
+            "distance_angstrom": round(float(dist), 3),
+            "min_distance_angstrom": round(float(min_dist), 3),
+        })
     num_close = len(close_pairs)
     return {
         "file": file_name,
@@ -446,3 +446,12 @@ def build_interface(
     return {
         "output_interface_file": _display_path(output_path),
     }
+
+#debug
+if __name__ == "__main__":
+    folder = "sandbox/runtime/"
+    file = "pt_corundum_co2_h2_system.cif"
+
+    check_close_atoms_result = check_close_atoms(folder, file, tolerance=-0.5)
+    print("Check Close Atoms Result:")
+    print(check_close_atoms_result)

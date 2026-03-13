@@ -5,6 +5,21 @@ from agent_team.planning.task import Task, TaskStatus
 from agent_team.planning.plan import Plan
 
 
+def _regularize_dependencies(dependencies: dict) -> dict:
+    # Tool-call arguments arrive as JSON, so dependency keys may be strings.
+    # Normalize them into integer task IDs for internal use.
+    if not dependencies:
+        return {}
+    regularized = {}
+    for key, value in dependencies.items():
+        try:
+            int_key = int(key)
+            int_values = [int(v) for v in value]
+            regularized[int_key] = int_values
+        except (ValueError, TypeError):
+            continue
+    return regularized
+
 def reset_plan():
     """
     Reset the current plan and clear all tasks.
@@ -23,8 +38,17 @@ def create_plan(
     
     Args:
         tasks: List of task descriptions. Task IDs will be assigned sequentially starting from 1.
-        dependencies: Dict mapping task IDs to lists of dependency IDs. e.g., {2: [1, 3]} means task 2 can only be executed after task 1 and 3. Default dependency is sequential (task n depends on task n-1).
+        dependencies: JSON object mapping task IDs to dependency lists.
+            Example: {"2": [1, 3]} means task 2 can only be executed after task 1 and 3.
+            Default dependency is sequential, where task n depends on task n-1.
     """
+    
+    try:
+        dependencies = _regularize_dependencies(dependencies)
+    except Exception as e:
+        return {
+            "error": f"Invalid dependencies format: {e}. Use a JSON object like {{\"2\": [1, 3]}}."
+        }
 
     # create Task lists
     task_objects = []
@@ -56,13 +80,21 @@ def revise_plan(
     
     Args:
         add_tasks: List of new task descriptions to add. Task IDs will be assigned sequentially after existing tasks.
-        add_dependencies: Optional dict mapping existing task IDs to lists of new dependency IDs to add.
-                e.g., {2: [4, 5]} means task 2 should now also depend on tasks 4 and 5
+        add_dependencies: Optional JSON object mapping task IDs to dependency IDs to add.
+            Example: {"2": [4, 5]} means task 2 should now also depend on tasks 4 and 5.
         deprecate_tasks: Optional list of task IDs to mark as deprecated (wrong or not needed anymore). 
                 The dependencies of the deprecated tasks will also be removed from other tasks.
-        remove_dependencies: Optional dict mapping existing task IDs to lists of dependency IDs to remove.
-                e.g., {3: [1, 2]} means task 3 should no longer depend on tasks 1 and 2
+        remove_dependencies: Optional JSON object mapping task IDs to dependency IDs to remove.
+            Example: {"3": [1, 2]} means task 3 should no longer depend on tasks 1 and 2.
     """
+
+    try:
+        add_dependencies = _regularize_dependencies(add_dependencies)
+        remove_dependencies = _regularize_dependencies(remove_dependencies)
+    except Exception as e:
+        return {
+            "error": f"Invalid dependencies format: {e}. Use JSON objects like {{\"2\": [4, 5]}}."
+        }
 
     if todo_flow.plan is None:
         raise ValueError("No existing plan to revise. Please create a plan first.")
@@ -116,7 +148,7 @@ def start_task(task_id: int):
         return {
             "message": f"Task {task_id} started."
         }
-    except ValueError as e:
+    except Exception as e:
         return {
             "error": str(e)
         }

@@ -151,4 +151,5 @@ async def ask_code_graph_local(question: str) -> str:
                 f"[code_graph_tool] Memgraph handshake failed, retrying... {e}"
             )
             time.sleep(2)
-    raise last_error or RuntimeError("Memgraph connection failed.")
+    # raise last_error or RuntimeError("Memgraph connection failed.")
+    return f"Error: Unable to connect to code graph database after multiple attempts. Last error: {last_error}"

@@ -50,6 +50,17 @@ class Orchestrator(BaseAgent):
                 # After planner's modelling work, check if done or need to continue
                 to_human = ctx.session.state.get('to_human', 'false')
                 if to_human == 'true':
+                    note_written = ctx.session.state.get('note_written', 'false')
+                    if note_written == 'false':
+                        # If not already written tools, ask planner once whether it wants to write notes for future agents
+                        system_event = Event(
+                            author="system",
+                            invocation_id=ctx.invocation_id,
+                            content=types.Content(
+                                parts=[types.Part(text="Do you want to write notes for future agents based on what you learned during this modelling phase?")],
+                            )
+                        )
+                        yield system_event
                     return
                 
                 # Otherwise, start a new planning cycle

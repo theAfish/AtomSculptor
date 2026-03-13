@@ -22,11 +22,17 @@ class ToHuman(str, Enum):
     TRUE = "true"
     FALSE = "false"
 
+class NoteWritten(str, Enum):
+    """Allowed values for the 'note_written' state."""
+    TRUE = "true"
+    FALSE = "false"
+
 
 # State validation registry
 STATE_VALIDATORS = {
     "current_stage": CurrentStage,
     "to_human": ToHuman,
+    "note_written": NoteWritten,
 }
 
 

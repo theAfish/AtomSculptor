@@ -104,23 +104,33 @@ def read_structure(folder: str, file_name: str) -> dict:
     atoms = _load_atoms(folder, file_name)
     if isinstance(atoms, dict) and "error" in atoms:
         return {"error": atoms["error"]}
-    return {
+    
+    num_atoms = len(atoms)
+    result = {
         "file": file_name,
         "chemical_formula": atoms.get_chemical_formula(),
-        "num_atoms": len(atoms),
-        "atoms": [
+        "num_atoms": num_atoms,
+        "cell_vectors_angstrom": atoms.cell.array.tolist()
+        if atoms.cell is not None
+        else None,
+        "periodic_boundary_conditions": atoms.pbc.tolist(),
+    }
+    
+    # For structures with <= 10 atoms, provide full atom details
+    if num_atoms <= 10:
+        result["atoms"] = [
             {
                 "index": index,
                 "symbol": atom.symbol,
                 "position_angstrom": atoms.positions[index].tolist(),
             }
             for index, atom in enumerate(atoms)
-        ],
-        "cell_vectors_angstrom": atoms.cell.array.tolist()
-        if atoms.cell is not None
-        else None,
-        "periodic_boundary_conditions": atoms.pbc.tolist(),
-    }
+        ]
+    # else:
+    #     # Later potential implementation of robocrystallographer
+    #     result["note"] = f""
+    
+    return result
 
 def read_structures_in_text(folder: str, file_name: str) -> dict:
     """Read the raw structure file in text format as a string, if agents want to see and check."""

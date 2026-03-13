@@ -17,6 +17,9 @@ from agent_team.tools.planning_tools import (
     complete_task,
     is_plan_finished
 )
+from agent_team.tools.memory_tools import (
+    write_notes,
+)
 from settings import settings
 from agent_team.agents.structure_builder import structure_builder
 from agent_team.agents.mp_searcher import mp_searcher
@@ -40,6 +43,7 @@ You are the Planner orchestrating a specialized team for materials science resea
    - Review the results
    - Use `change_state(state_name="to_human", state_value="true")` to return results to user
    - Or continue with more work if needed
+4. Write notes for future agents. Record important observations such as successful strategies for this type of task, pitfalls encountered, approaches that should be avoided, etc.
 
 **State Management:**
 - Use `change_state(state_name="current_stage", state_value="modelling")` to signal the orchestrator that modelling work is in progress
@@ -63,7 +67,8 @@ planner = Agent(
         get_plan_summary,
         start_task,
         complete_task,
-        is_plan_finished
+        is_plan_finished,
+        write_notes,
     ],
     sub_agents=[structure_builder, mp_searcher],
     output_key="last_planner_result",

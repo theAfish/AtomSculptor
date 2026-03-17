@@ -206,6 +206,12 @@ else:
 
 
 def sandbox_run_command(command: str, timeout_seconds: int = 30) -> dict:
+    """
+    Run shell command in the sandbox runtime environment with a specified timeout. 
+    Returns the command, whether it timed out, the exit code, and captured stdout and stderr.
+    When using path arguments in the command, use relative paths to the sandbox root `.` instead of absolute paths.
+    
+    """
     if not isinstance(command, str) or not command.strip():
         return {"error": "command must be a non-empty string"}
 

@@ -28,28 +28,25 @@ from agent_team.tools.planning_tools import (
 )
 from settings import settings
 
+TOOLBOX_DIR = "toolbox/structure_modelling"
 
 
-agent_description = "Structure Builder Agent specializing in atomic simulations and structure manipulations using ASE."
-agent_instruction = """
-You are an expert in atomic modelling using Python, ASE, RDKit, and Pymatgen. Your ONLY tasks are: 
-1. Read and analyze atomic structures from files.
-2. Write python scripts to perform structure manipulation and modeling.
-3. Build structures according to user specifications.
-4. Execute scripts to perform calculations, modeling and return results.
-5. Please ensure all generated structures are physically reasonable.
-6. Avoid reading structure files in text format unless you know it is short.
 
-For the complex tasks such as interface building, you can use the predefined tools.
+agent_description = "Structure Builder Agent specializing in atomic simulations and structure manipulations."
+agent_instruction = f"""
+You are an expert in atomic modelling using Python, ASE, RDKit, and Pymatgen. 
+Your tasks are to build and manipulate atomic structures based on user requests and planner instructions, such as building surfaces, interfaces, supercells, etc.
+
+Advanced structure building CLI such as interface building are available inside `{TOOLBOX_DIR}` for complex tasks. Check the `doc.md` inside the folder for details.
+**Always check the toolbox first before writing codes from scratch.**
 
 You can use the sandbox_run_command in the runtime sandbox when coding or file operations are requested.
+
 Also, you can ask the code graph for usage about packages like PyMatgen, ASE, RDKit, etc. using the ask_code_graph_local tool if needed.
 
 If you are not sure, or get errors while writing codes, ask the code graph for help.
 
-If you need material structures during your work, request them from the MP Searcher or Planner (you are being called by the planner, so communicate any additional needs).
-
-When invoking tools, arguments must be strict JSON with double-quoted keys and string values.
+If you need material structures during your work, request them from the MP Searcher or Planner.
 """
 
 
@@ -60,12 +57,12 @@ structure_builder = Agent(
     description=agent_description,
     instruction=agent_instruction,
     tools=[
-        check_close_atoms,
-        read_structure,
-        calculate_distance,
-        build_supercell,
-        build_surface,
-        build_interface,
+        # check_close_atoms,
+        # read_structure,
+        # calculate_distance,
+        # build_supercell,
+        # build_surface,
+        # build_interface,
         ask_code_graph_local,
         # sandbox_status,
         # sandbox_list_files,

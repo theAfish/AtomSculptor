@@ -18,7 +18,7 @@ import uvicorn
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -34,6 +34,9 @@ from settings import settings
 # ── Paths ────────────────────────────────────────────────────────────────────
 _HERE = Path(__file__).resolve().parent
 _STATIC = _HERE / "static"
+
+STRUCTURE_EXTS = {"cif", "xyz", "vasp", "poscar", "extxyz", "pdb", "sdf", "mol2"}
+VASP_STRUCTURE_PREFIXES = ("poscar", "contcar")
 
 # ── ADK runner & session ─────────────────────────────────────────────────────
 session_service = InMemorySessionService()
@@ -51,6 +54,35 @@ def _sandbox_root() -> Path:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _asset_url(relative_path: str) -> str:
+    asset_path = _STATIC / relative_path
+    try:
+        version = asset_path.stat().st_mtime_ns
+    except FileNotFoundError:
+        version = 0
+    return f"/static/{relative_path}?v={version}"
+
+
+def _detect_ase_format(path_or_name: str | Path) -> str | None:
+    name = Path(path_or_name).name.lower()
+    suffix = Path(name).suffix.lower().lstrip(".")
+    if suffix in STRUCTURE_EXTS:
+        return "vasp" if suffix == "poscar" else suffix
+    if any(
+        name == prefix
+        or name.startswith(f"{prefix}_")
+        or name.startswith(f"{prefix}-")
+        or name.startswith(f"{prefix}.")
+        for prefix in VASP_STRUCTURE_PREFIXES
+    ):
+        return "vasp"
+    return None
+
+
+def _is_structure_filename(path_or_name: str | Path) -> bool:
+    return _detect_ase_format(path_or_name) is not None
 
 
 def _serialize_todo_flow() -> dict:
@@ -93,6 +125,7 @@ def _build_file_tree(root: Path, base: Path) -> list:
                     "path": rel,
                     "type": "file",
                     "size": item.stat().st_size,
+                    "is_structure": _is_structure_filename(item.name),
                 })
     except PermissionError:
         pass
@@ -185,7 +218,10 @@ async def _close_websocket_quietly(websocket: WebSocket) -> None:
 # ── HTTP routes ──────────────────────────────────────────────────────────────
 
 async def index(request):
-    return FileResponse(_STATIC / "index.html", media_type="text/html")
+    html = (_STATIC / "index.html").read_text("utf-8")
+    html = html.replace("__INDEX_CSS__", _asset_url("css/index.css"))
+    html = html.replace("__APP_JS__", _asset_url("js/app.js"))
+    return HTMLResponse(html, media_type="text/html", headers={"Cache-Control": "no-store"})
 
 
 async def api_todo_flow(request):
@@ -226,7 +262,8 @@ async def api_structure(request):
 
     try:
         from ase.io import read as ase_read
-        atoms = ase_read(str(fp))
+        ase_format = _detect_ase_format(fp)
+        atoms = ase_read(str(fp), format=ase_format)
     except Exception as exc:
         return JSONResponse({"error": f"Could not parse structure: {exc}"}, status_code=400)
 
@@ -277,7 +314,6 @@ async def api_structure_save(request):
     try:
         from ase import Atoms as AseAtoms
         from ase.io import write as ase_write
-        import numpy as np
 
         symbols = [a["symbol"] for a in atoms_data]
         positions = [[a["x"], a["y"], a["z"]] for a in atoms_data]
@@ -285,7 +321,11 @@ async def api_structure_save(request):
         if cell is not None:
             kwargs["cell"] = cell
         new_atoms = AseAtoms(**kwargs)
-        ase_write(str(fp), new_atoms)
+        ase_format = _detect_ase_format(fp)
+        if ase_format is None:
+            ase_write(str(fp), new_atoms)
+        else:
+            ase_write(str(fp), new_atoms, format=ase_format)
         return JSONResponse({"ok": True, "path": rel, "natoms": len(atoms_data)})
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)

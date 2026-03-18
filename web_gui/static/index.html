@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>AtomSculptor</title>
-<link rel="stylesheet" href="/static/css/index.css"/>
+<link rel="stylesheet" href="__INDEX_CSS__"/>
 
 <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
@@ -12,7 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
-<script defer src="/static/js/app.js"></script>
+<script defer src="__APP_JS__"></script>
 </head>
 <body>
 <div id="app">
@@ -70,7 +70,7 @@
 
         <div id="viewer-wrap">
           <canvas id="struct-canvas"></canvas>
-          <div id="viewer-empty">Double-click a structure file<br/>(.cif .xyz .vasp .pdb) to view</div>
+          <div id="viewer-empty">Click a structure file<br/>(.cif .xyz .vasp .pdb or POSCAR/CONTCAR) to view</div>
           <div id="add-atom-palette"></div>
           <div id="box-select-overlay"></div>
 

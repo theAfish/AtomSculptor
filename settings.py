@@ -71,8 +71,8 @@ class Settings:
         self.MP_SEARCHER_MODEL = os.environ.get(
             "MP_SEARCHER_MODEL", self._data.get("MP_SEARCHER_MODEL", "openai/qwen3-max")
         )
-        self.CODE_ANALYZER_MODEL = os.environ.get(
-            "CODE_ANALYZER_MODEL", self._data.get("CODE_ANALYZER_MODEL", "openai/qwen3-max")
+        self.AGGREGATOR_MODEL = os.environ.get(
+            "AGGREGATOR_MODEL", self._data.get("AGGREGATOR_MODEL", "openai/qwen3-max")
         )
         self.SANDBOX_DIR = os.environ.get(
             "SANDBOX_DIR", self._data.get("SANDBOX_DIR", "sandbox/.runtime")

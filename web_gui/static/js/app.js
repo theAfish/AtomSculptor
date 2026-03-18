@@ -35,6 +35,7 @@ const S = {
 };
 
 const STRUCTURE_EXTS = new Set(["cif", "xyz", "vasp", "poscar", "extxyz", "pdb", "sdf", "mol2"]);
+const STRUCTURE_PREFIXES = ["poscar", "contcar"];
 const STATUS_COLOR = {
   pending: "#858585",
   ready: "#4fc3f7",
@@ -465,12 +466,27 @@ function autoLoadStructure(result) {
   for (const key of Object.keys(result)) {
     const val = result[key];
     if (typeof val !== "string") continue;
-    const ext = val.split(".").pop().toLowerCase();
-    if (STRUCTURE_EXTS.has(ext)) {
+    if (isStructureFilename(val)) {
       loadStructure(val);
       return;
     }
   }
+}
+
+function isStructureFilename(name) {
+  const base = String(name).split("/").pop().toLowerCase();
+  const ext = base.includes(".") ? base.split(".").pop() : "";
+  if (STRUCTURE_EXTS.has(ext)) return true;
+  return STRUCTURE_PREFIXES.some((prefix) => (
+    base === prefix
+    || base.startsWith(`${prefix}_`)
+    || base.startsWith(`${prefix}-`)
+    || base.startsWith(`${prefix}.`)
+  ));
+}
+
+function isStructureItem(item) {
+  return Boolean(item && (item.is_structure || isStructureFilename(item.name || item.path || "")));
 }
 
 function initViewer() {
@@ -1132,9 +1148,11 @@ function wireToolbar() {
   });
 }
 
-function fileIcon(name) {
-  const ext = name.split(".").pop().toLowerCase();
-  if (STRUCTURE_EXTS.has(ext)) return "🔬";
+function fileIcon(item) {
+  const name = typeof item === "string" ? item : (item.name || "");
+  const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+  if (typeof item === "object" && isStructureItem(item)) return "🔬";
+  if (isStructureFilename(name)) return "🔬";
   if (ext === "py") return "🐍";
   if (ext === "md") return "📝";
   if (["json", "yaml", "yml", "toml"].includes(ext)) return "⚙";
@@ -1179,11 +1197,10 @@ function buildTree(items, container, level) {
       const row = document.createElement("div");
       row.className = "tree-item";
       row.style.paddingLeft = `${(level * 14) + 20}px`;
-      const icon = fileIcon(item.name);
+      const icon = fileIcon(item);
       row.innerHTML = `<span class='tree-icon'>${icon}</span><span class='tree-name'>${esc(item.name)}</span>`
         + `<span class='tree-size'>${fmtSize(item.size)}</span>`;
-      const ext = item.name.split(".").pop().toLowerCase();
-      if (STRUCTURE_EXTS.has(ext)) {
+      if (isStructureItem(item)) {
         row.style.cursor = "pointer";
         row.addEventListener("click", () => loadStructure(item.path));
       }

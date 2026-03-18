@@ -5,7 +5,7 @@
 PLANNER_MODEL: "openai/glm-5"
 STRUCTURE_BUILDER_MODEL: "openai/glm-5"
 MP_SEARCHER_MODEL: "openai/glm-5"
-CODE_ANALYZER_MODEL: "openai/glm-5"
+AGGREGATOR_MODEL: "openai/glm-5"
 
 # local directory used by sandbox runtime wrapper
 SANDBOX_DIR: "sandbox/.runtime"

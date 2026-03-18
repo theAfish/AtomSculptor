@@ -20,6 +20,7 @@ class Orchestrator(BaseAgent):
         
         while iteration < max_iterations:
             current_stage = ctx.session.state.get('current_stage', 'planning')
+            ctx.session.state['note_written'] = 'false'
             
             if current_stage == 'planning':
                 # Remember the stage before calling planner

@@ -7,7 +7,6 @@ from agent_team.tools.memory_tools import (
     read_note_file,
     read_instruction,
     write_instructions,
-    update_instruction,
     remove_outdated_instruction
 )
 from settings import settings
@@ -34,6 +33,7 @@ You must:
 3. Identify common failure patterns and their fixes
 4. Produce actionable and unambiguous instructions
 5. Ignore information that is too detailed or specific to a single execution instance
+6. Ignore any irrelevant information that does not contribute to the task instructions
 
 Before creating or updating any instruction file, you MUST:
 
@@ -71,10 +71,8 @@ aggregator = Agent(
     tools=[
         list_all_note_files,
         read_note_file,
-        # list_current_instructions,
         read_instruction,
         write_instructions,
-        update_instruction,
         remove_outdated_instruction
     ],
     output_key="last_aggregator_result",

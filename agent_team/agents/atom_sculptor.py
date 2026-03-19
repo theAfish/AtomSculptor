@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 _NOTES_DIR = Path(__file__).parent.parent / "memories" / "notes"
 
 # Maximum number of notes before auto-aggregation is triggered
-MAX_NUM_NOTES = 1
+MAX_NUM_NOTES = 10
 
 # Module-level handle for the background aggregator task (one at a time)
 _aggregator_task: asyncio.Task | None = None

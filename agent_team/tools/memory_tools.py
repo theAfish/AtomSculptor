@@ -211,7 +211,7 @@ def read_instruction(instruction_file: str, tool_context: ToolContext) -> dict:
 
     return {"content": content}
 
-def write_instructions(instruction_contents: str, instruction_file: str, tool_context: ToolContext) -> dict:
+def write_instructions(instruction_contents: str, instruction_file: str, overwrite: bool, tool_context: ToolContext) -> dict:
     """Write instructions to a file. The notes read will be automatically cleaned up after writing instructions."""
     if not instruction_contents or not instruction_contents.strip():
         return {"error": "instruction_contents must be a non-empty string"}
@@ -220,75 +220,15 @@ def write_instructions(instruction_contents: str, instruction_file: str, tool_co
 
     instruction_file_path = instructions_path / instruction_file
 
+    if instruction_file_path.exists() and not overwrite:
+        return {"error": f"Instruction file already exists: {instruction_file}"}
+
     with instruction_file_path.open("w", encoding="utf-8") as f:
         f.write(instruction_contents.rstrip() + "\n")
 
     cleanup_result = _delete_marked_notes(tool_context)
     return {
         "message": "Instructions written.",
-        "cleanup": cleanup_result,
-    }
-
-def update_instruction(
-    instruction_contents: str,
-    instruction_file: str,
-    diff_mode=True,
-    tool_context: ToolContext | None = None,
-) -> dict:
-    """Update instructions in a file. If diff_mode is True, only write the diff between existing and new contents. 
-    The notes read will be automatically cleaned up after updating instructions if tool_context is provided."""
-    if not instruction_contents or not instruction_contents.strip():
-        return {"error": "instruction_contents must be a non-empty string"}
-
-    if not instruction_file or not instruction_file.strip():
-        return {"error": "instruction_file must be a non-empty string"}
-
-    instructions_path.mkdir(parents=True, exist_ok=True)
-
-    instruction_file_path = instructions_path / instruction_file
-    new_contents = instruction_contents.rstrip() + "\n"
-
-    existing_contents = ""
-    if instruction_file_path.exists() and instruction_file_path.is_file():
-        with instruction_file_path.open("r", encoding="utf-8") as f:
-            existing_contents = f.read()
-
-    if diff_mode:
-        diff_lines = list(
-            difflib.unified_diff(
-                existing_contents.splitlines(keepends=True),
-                new_contents.splitlines(keepends=True),
-                fromfile=f"{instruction_file} (old)",
-                tofile=f"{instruction_file} (new)",
-            )
-        )
-        diff_text = "".join(diff_lines)
-
-        if not diff_text:
-            return {"message": "No changes detected.", "updated": False}
-
-        with instruction_file_path.open("w", encoding="utf-8") as f:
-            f.write(diff_text)
-
-        cleanup_result = _delete_marked_notes(tool_context) if tool_context else None
-
-        return {
-            "message": "Instruction updated with diff.",
-            "updated": True,
-            "diff": diff_text,
-            "cleanup": cleanup_result,
-        }
-
-    if existing_contents == new_contents:
-        return {"message": "No changes detected.", "updated": False}
-
-    with instruction_file_path.open("w", encoding="utf-8") as f:
-        f.write(new_contents)
-
-    cleanup_result = _delete_marked_notes(tool_context) if tool_context else None
-    return {
-        "message": "Instruction updated.",
-        "updated": True,
         "cleanup": cleanup_result,
     }
 
@@ -313,3 +253,4 @@ def remove_outdated_instruction(instruction_file: str, tool_context: ToolContext
         return {"message": f"Instruction file '{instruction_file}' removed."}
     except OSError as e:
         return {"error": f"Failed to remove instruction file: {str(e)}"}
+    

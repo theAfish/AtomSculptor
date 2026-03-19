@@ -30,13 +30,9 @@ export const S = {
   hovered: null,
   addElement: "H",
 
-  dragAtomId: null,
-  dragPlane: null,
+  gizmoJustDragged: false,
 
   boxStart: null,
-
-  rotateActive: false,
-  rotateLast: null,
 };
 
 export const STRUCTURE_EXTS = new Set([
@@ -75,14 +71,15 @@ export const ELEM_RADIUS = {
   default: 1.2,
 };
 
-export const BOND_MAX_DIST = 2.5;
+// Bond tolerance: bond drawn when dist < (rCov_A + rCov_B) * BOND_TOLERANCE
+export const BOND_TOLERANCE = 1.2;
 
 export const MODE_HINT = {
-  orbit: "Drag to rotate · Scroll to zoom · Right-drag to pan",
-  select: "Click atom to select · Shift/Ctrl for multi · Click empty to deselect",
+  orbit: "Drag to rotate · Scroll to zoom · Right-drag to pan · Click atom to select",
   box: "Drag box to select · Shift/Ctrl to add to selection",
-  drag: "Click-drag atom to reposition",
-  rotate: "Drag to rotate selected atoms",
+  translate: "Select atoms then drag gizmo axes · Arrows/WASD to nudge 0.1 Å",
+  rotate: "Select atoms then drag gizmo rings · Arrows/WASD to nudge 1°",
+  scale: "Select atoms then drag gizmo handles · Arrows/WASD to nudge",
   add: "Click atom surface to add a neighbor",
   delete: "Click atom to delete",
 };

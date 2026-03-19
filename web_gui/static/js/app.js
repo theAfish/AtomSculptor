@@ -10,7 +10,8 @@
  *   filesystem.js – workspace file-tree rendering
  *   viewer.js     – Three.js scene, camera, rendering loop
  *   structure.js  – structure data (load / save / detect)
- *   editor.js     – edit modes (select, drag, rotate, box, add, delete)
+ *   editor.js     – edit modes (select, box, translate, rotate, scale, add, delete)
+ *   gizmo.js      – TransformControls gizmo for translate/rotate/scale
  */
 
 import { S } from "./state.js";
@@ -20,6 +21,7 @@ import { wireChat } from "./chat.js";
 import { initGraph } from "./todo.js";
 import { initViewer } from "./viewer.js";
 import { setupCanvasEvents, setMode, wireToolbar, wireKeyboardShortcuts } from "./editor.js";
+import { initGizmo } from "./gizmo.js";
 
 function reportStartupError(label, err) {
   console.error(`${label} startup error`, err);
@@ -49,15 +51,58 @@ function safeInit(label, fn) {
   }
 }
 
+function initResizablePanels() {
+  const app = document.getElementById("app");
+  const panelIds = ["panel-todo", "panel-chat", "panel-struct", "panel-files"];
+  const minWidth = 140;
+
+  document.querySelectorAll(".col-divider").forEach((divider, i) => {
+    divider.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidths = panelIds.map(id =>
+        document.getElementById(id).getBoundingClientRect().width
+      );
+
+      divider.classList.add("dragging");
+      document.body.classList.add("col-dragging");
+
+      function onMove(me) {
+        const dx = me.clientX - startX;
+        const maxDx = startWidths[i + 1] - minWidth;
+        const minDx = -(startWidths[i] - minWidth);
+        const d = Math.max(minDx, Math.min(maxDx, dx));
+        const w = [...startWidths];
+        w[i] += d;
+        w[i + 1] -= d;
+        app.style.gridTemplateColumns =
+          `${w[0]}px 4px ${w[1]}px 4px ${w[2]}px 4px ${w[3]}px`;
+      }
+
+      function onUp() {
+        divider.classList.remove("dragging");
+        document.body.classList.remove("col-dragging");
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      }
+
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   safeInit("Chat", wireChat);
   safeInit("Toolbar", wireToolbar);
   safeInit("Keyboard", wireKeyboardShortcuts);
   safeInit("Task graph", initGraph);
+  safeInit("Resizable panels", initResizablePanels);
   connect();
 
   const viewerReady = safeInit("Viewer", initViewer);
   if (viewerReady) {
+    safeInit("Gizmo", initGizmo);
     safeInit("Canvas controls", setupCanvasEvents);
     setMode("orbit");
   } else {

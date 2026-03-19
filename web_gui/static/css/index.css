@@ -43,8 +43,23 @@ html, body {
   height: 100vh;
   grid-template-columns: 280px 1fr 1fr 260px;
   grid-template-rows: 36px 1fr;
-  grid-template-areas: "hdr hdr hdr hdr" "todo chat struct files";
+  grid-template-columns: 280px 4px 1fr 4px 1fr 4px 260px;
+  grid-template-areas: "hdr  hdr  hdr  hdr  hdr    hdr  hdr"
+                       "todo d1   chat d2   struct d3   files";
 }
+
+.col-divider {
+  background: transparent;
+  cursor: col-resize;
+  transition: background 0.15s;
+  z-index: 10;
+}
+.col-divider:hover, .col-divider.dragging { background: var(--accent); }
+body.col-dragging { cursor: col-resize !important; user-select: none; }
+
+#col-div-0 { grid-area: d1; }
+#col-div-1 { grid-area: d2; }
+#col-div-2 { grid-area: d3; }
 
 #header {
   grid-area: hdr;
@@ -373,15 +388,15 @@ html, body {
 #send-btn:disabled { opacity: 0.4; cursor: default; }
 
 #panel-struct .panel-body { overflow: hidden; }
-#struct-wrap { display: flex; width: 100%; height: 100%; }
+#struct-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; }
 #edit-toolbar {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
-  padding: 6px 4px;
+  padding: 4px 6px;
   background: var(--bg2);
-  border-right: 1px solid var(--border);
-  width: 40px;
+  border-bottom: 1px solid var(--border);
+  height: 40px;
   flex-shrink: 0;
   align-items: center;
 }
@@ -402,13 +417,13 @@ html, body {
 }
 .tb-btn:hover { background: var(--bg-hover); color: var(--text); }
 .tb-btn.active { background: var(--accent); border-color: var(--accent-l); color: #fff; }
-.tb-sep { width: 22px; height: 1px; background: var(--border); margin: 2px 0; flex-shrink: 0; }
+.tb-sep { height: 22px; width: 1px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
 .tb-btn::after {
   content: attr(data-tip);
   position: absolute;
-  left: 38px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  top: 38px;
+  transform: translateX(-50%);
   background: #1a1a2e;
   border: 1px solid var(--accent);
   color: var(--text);
@@ -541,10 +556,13 @@ html, body {
 
 @media (max-width: 1180px) {
   #app {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 4px 1fr;
     grid-template-rows: 36px 1fr 1fr;
-    grid-template-areas: "hdr hdr" "todo chat" "struct files";
+    grid-template-areas: "hdr    hdr hdr"
+                         "todo   d1  chat"
+                         "struct d2  files";
   }
+  #col-div-2 { display: none; }
 }
 
 @media (max-width: 780px) {
@@ -556,6 +574,7 @@ html, body {
     grid-template-rows: 36px 35vh 38vh 44vh 38vh;
     grid-template-areas: "hdr" "chat" "struct" "todo" "files";
   }
+  .col-divider { display: none; }
   .panel { border-right: none; border-bottom: 1px solid var(--border); }
-  #edit-toolbar { width: 36px; }
+  #edit-toolbar { height: 36px; width: auto; }
 }

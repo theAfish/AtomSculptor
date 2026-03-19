@@ -245,9 +245,7 @@ def sandbox_run_command(command: str, timeout_seconds: int = 30) -> dict:
         }
 
     return {
-        # "command": command,
         "timed_out": False,
-        "timeout_seconds": timeout,
         "exit_code": result.returncode,
         "stdout": result.stdout,
         "stderr": result.stderr,

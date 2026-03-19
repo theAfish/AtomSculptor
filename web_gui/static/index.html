@@ -11,6 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/TransformControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
 <script defer src="__APP_JS__" type="module"></script>
 </head>
@@ -21,6 +22,10 @@
     <span id="aggregator-hint" class="header-pill idle" title="Background note aggregation status">Memory idle</span>
     <span class="status"><span class="dot" id="ws-dot"></span><span id="ws-label">Connecting...</span></span>
   </div>
+
+  <div class="col-divider" id="col-div-0"></div>
+  <div class="col-divider" id="col-div-1"></div>
+  <div class="col-divider" id="col-div-2"></div>
 
   <div class="panel" id="panel-todo">
     <div class="panel-hdr"><span>Task Flow</span><button id="btn-refresh-todo" title="Refresh">↻</button></div>
@@ -57,16 +62,16 @@
       <div id="struct-wrap">
         <div id="edit-toolbar">
           <button class="tb-btn active" id="tb-orbit" data-mode="orbit" data-tip="Orbit (1)">◯</button>
-          <button class="tb-btn" id="tb-select" data-mode="select" data-tip="Select (2)">S</button>
-          <button class="tb-btn" id="tb-box" data-mode="box" data-tip="Box Select (3)">B</button>
-          <button class="tb-btn" id="tb-drag" data-mode="drag" data-tip="Drag Atom (4)">D</button>
-          <button class="tb-btn" id="tb-rotate" data-mode="rotate" data-tip="Rotate Selected (5)">R</button>
+          <button class="tb-btn" id="tb-box" data-mode="box" data-tip="Box Select (2)">⛶</button>
+          <button class="tb-btn" id="tb-translate" data-mode="translate" data-tip="Translate (W)">✥</button>
+          <button class="tb-btn" id="tb-rotate" data-mode="rotate" data-tip="Rotate (R)">↺</button>
+          <button class="tb-btn" id="tb-scale" data-mode="scale" data-tip="Scale (E)">⤡</button>
           <div class="tb-sep"></div>
-          <button class="tb-btn" id="tb-add" data-mode="add" data-tip="Add Atom (6)">+</button>
-          <button class="tb-btn" id="tb-delete" data-mode="delete" data-tip="Delete (7)">-</button>
+          <button class="tb-btn" id="tb-add" data-mode="add" data-tip="Add Atom (5)">+</button>
+          <button class="tb-btn" id="tb-delete" data-mode="delete" data-tip="Delete (6)">-</button>
           <div class="tb-sep"></div>
           <button class="tb-btn" id="tb-reset" data-tip="Reset View">V</button>
-          <button class="tb-btn" id="tb-save" data-tip="Save">W</button>
+          <button class="tb-btn" id="tb-save" data-tip="Save (Ctrl+S)">💾</button>
         </div>
 
         <div id="viewer-wrap">

@@ -1,39 +1,44 @@
 /**
- * editor.js – Edit-mode interactions: select, box-select, drag, rotate, add, delete.
+ * editor.js – Edit-mode interactions: select, box-select, translate/rotate/scale
+ *             (via TransformControls gizmo), add, delete.
  */
 
 import { S } from "./state.js";
 import { $, $$ } from "./utils.js";
 import {
   raycastAtoms, atomIdFromMesh, setOrbitEnabled,
-  rebuildScene, updateAtomVisuals, syncMeshPositionsToAtoms,
-  computeCentroid, elemColor, resetCamera,
+  rebuildScene, updateAtomVisuals,
+  elemColor, resetCamera, setViewDirection,
 } from "./viewer.js";
 import { updateStatusBar, deleteAtomById, deleteSelected, saveStructure } from "./structure.js";
+import { updateGizmo, nudgeTransform, isGizmoActive } from "./gizmo.js";
+
+const TRANSFORM_MODES = new Set(["translate", "rotate", "scale"]);
 
 // ── Select ──────────────────────────────────────────────────────────────────
 
 function onSelectClick(e) {
   const hit = raycastAtoms(e);
   if (!hit) {
-    if (!e.shiftKey && !e.ctrlKey) {
+    if (!e.shiftKey) {
       S.selected.clear();
       updateAtomVisuals();
+      updateGizmo();
       updateStatusBar();
     }
     return;
   }
 
   const id = atomIdFromMesh(hit.object);
-  if (e.shiftKey || e.ctrlKey) {
-    if (S.selected.has(id)) S.selected.delete(id);
-    else S.selected.add(id);
+  if (e.shiftKey) {
+    S.selected.add(id);
   } else {
     S.selected.clear();
     S.selected.add(id);
   }
 
   updateAtomVisuals();
+  updateGizmo();
   updateStatusBar();
 }
 
@@ -43,6 +48,7 @@ function onDeleteClick(e) {
   const hit = raycastAtoms(e);
   if (!hit) return;
   deleteAtomById(atomIdFromMesh(hit.object));
+  updateGizmo();
 }
 
 // ── Add Atom ────────────────────────────────────────────────────────────────
@@ -90,125 +96,6 @@ function onAddClick(e) {
   updateStatusBar();
 }
 
-// ── Drag ────────────────────────────────────────────────────────────────────
-
-function onDragStart(e) {
-  const hit = raycastAtoms(e);
-  if (!hit) return;
-
-  S.dragAtomId = atomIdFromMesh(hit.object);
-  setOrbitEnabled(false);
-
-  const normal = new THREE.Vector3().copy(S.camera.position).normalize();
-  S.dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, hit.point);
-}
-
-function onDragMove(e) {
-  if (S.dragAtomId === null) return;
-
-  const wrap = $("#viewer-wrap");
-  const rect = wrap.getBoundingClientRect();
-  const x = (((e.clientX - rect.left) / rect.width) * 2) - 1;
-  const y = -(((e.clientY - rect.top) / rect.height) * 2) + 1;
-
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(new THREE.Vector2(x, y), S.camera);
-  const target = new THREE.Vector3();
-  if (!raycaster.ray.intersectPlane(S.dragPlane, target)) return;
-
-  const c = computeCentroid();
-  const atom = S.atoms.find((a) => a.id === S.dragAtomId);
-  if (!atom) return;
-
-  atom.x = target.x + c.x;
-  atom.y = target.y + c.y;
-  atom.z = target.z + c.z;
-  syncMeshPositionsToAtoms();
-}
-
-function onDragEnd() {
-  if (S.dragAtomId === null) return;
-  S.dragAtomId = null;
-  setOrbitEnabled(true);
-  rebuildScene();
-  updateStatusBar();
-}
-
-// ── Rotate ──────────────────────────────────────────────────────────────────
-
-function onRotateStart(e) {
-  if (S.selected.size === 0) {
-    const hit = raycastAtoms(e);
-    if (!hit) return;
-    S.selected.add(atomIdFromMesh(hit.object));
-    updateAtomVisuals();
-    updateStatusBar();
-  }
-
-  S.rotateActive = true;
-  S.rotateLast = { x: e.clientX, y: e.clientY };
-  setOrbitEnabled(false);
-}
-
-function rotateSelectedByQuaternion(q) {
-  if (!S.selected.size) return;
-
-  const selectedAtoms = S.atoms.filter((a) => S.selected.has(a.id));
-  if (!selectedAtoms.length) return;
-
-  let cx = 0;
-  let cy = 0;
-  let cz = 0;
-  for (const a of selectedAtoms) {
-    cx += a.x;
-    cy += a.y;
-    cz += a.z;
-  }
-  cx /= selectedAtoms.length;
-  cy /= selectedAtoms.length;
-  cz /= selectedAtoms.length;
-
-  const origin = new THREE.Vector3(cx, cy, cz);
-  for (const a of selectedAtoms) {
-    const v = new THREE.Vector3(a.x, a.y, a.z).sub(origin).applyQuaternion(q).add(origin);
-    a.x = v.x;
-    a.y = v.y;
-    a.z = v.z;
-  }
-}
-
-function onRotateMove(e) {
-  if (!S.rotateActive || !S.rotateLast) return;
-
-  const dx = e.clientX - S.rotateLast.x;
-  const dy = e.clientY - S.rotateLast.y;
-  S.rotateLast = { x: e.clientX, y: e.clientY };
-
-  if (dx === 0 && dy === 0) return;
-
-  const camDir = new THREE.Vector3();
-  S.camera.getWorldDirection(camDir);
-  const camUp = new THREE.Vector3().copy(S.camera.up).normalize();
-  const camRight = new THREE.Vector3().crossVectors(camDir, camUp).normalize();
-
-  const qYaw = new THREE.Quaternion().setFromAxisAngle(camUp, dx * 0.01);
-  const qPitch = new THREE.Quaternion().setFromAxisAngle(camRight, dy * 0.01);
-  const q = qYaw.multiply(qPitch);
-
-  rotateSelectedByQuaternion(q);
-  syncMeshPositionsToAtoms();
-  updateAtomVisuals();
-}
-
-function onRotateEnd() {
-  if (!S.rotateActive) return;
-  S.rotateActive = false;
-  S.rotateLast = null;
-  setOrbitEnabled(true);
-  rebuildScene();
-  updateStatusBar();
-}
-
 // ── Box Select ──────────────────────────────────────────────────────────────
 
 function onBoxStart(e) {
@@ -245,12 +132,24 @@ function onBoxMove(e) {
 }
 
 function onBoxEnd(e) {
-  if (!S.boxStart) return;
+  if (!S.boxStart) return false;
 
   const wrap = $("#viewer-wrap");
   const rect = wrap.getBoundingClientRect();
   const ex = e.clientX - rect.left;
   const ey = e.clientY - rect.top;
+
+  const dx = ex - S.boxStart.x;
+  const dy = ey - S.boxStart.y;
+  const clickThreshold = 4;
+  const isClick = Math.abs(dx) < clickThreshold && Math.abs(dy) < clickThreshold;
+
+  if (isClick) {
+    S.boxStart = null;
+    $("#box-select-overlay").style.display = "none";
+    setOrbitEnabled(true);
+    return false;
+  }
 
   const x0 = ((Math.min(S.boxStart.x, ex) / rect.width) * 2) - 1;
   const y0 = -((Math.min(S.boxStart.y, ey) / rect.height) * 2) + 1;
@@ -271,40 +170,77 @@ function onBoxEnd(e) {
   $("#box-select-overlay").style.display = "none";
   setOrbitEnabled(true);
   updateAtomVisuals();
+  updateGizmo();
   updateStatusBar();
+  return true;
 }
 
 // ── Canvas event wiring ─────────────────────────────────────────────────────
 
 export function setupCanvasEvents() {
   const canvas = $("#struct-canvas");
+  const hoverModes = new Set(["orbit", "delete", "add", "translate", "rotate", "scale"]);
+  let pendingHover = null;
+  let hoverTickScheduled = false;
+  let transientBoxSelectActive = false;
+  let suppressNextSelectClick = false;
+  let leftDownPos = null;
+  let leftDragMoved = false;
 
-  canvas.addEventListener("mousemove", (e) => {
-    if (S.mode === "box") {
-      onBoxMove(e);
-      return;
-    }
-    if (S.mode === "drag" && S.dragAtomId !== null) {
-      onDragMove(e);
-      return;
-    }
-    if (S.mode === "rotate" && S.rotateActive) {
-      onRotateMove(e);
-      return;
-    }
+  // In orbit / transform modes, Shift+left drag starts box selection.
+  // Capture phase runs before OrbitControls' own listeners.
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button !== 0 || !e.shiftKey) return;
+    if (S.mode !== "orbit" && !TRANSFORM_MODES.has(S.mode)) return;
+    if (isGizmoActive()) return;       // don't hijack gizmo interaction
+    setOrbitEnabled(false);
+  }, true);
 
-    const hit = raycastAtoms(e);
+  const runHoverHitTest = () => {
+    hoverTickScheduled = false;
+    if (!pendingHover) return;
+
+    const hoverEvt = pendingHover;
+    pendingHover = null;
+
+    const hit = raycastAtoms(hoverEvt);
     const newHover = hit ? atomIdFromMesh(hit.object) : null;
     if (newHover !== S.hovered) {
       S.hovered = newHover;
       updateAtomVisuals();
     }
 
-    if (S.mode === "rotate") {
-      canvas.style.cursor = S.rotateActive ? "grabbing" : "grab";
-    } else {
-      const pointerMode = S.mode === "select" || S.mode === "delete" || S.mode === "drag";
-      canvas.style.cursor = newHover !== null && pointerMode ? "pointer" : "default";
+    const pointerMode = hoverModes.has(S.mode);
+    canvas.style.cursor = newHover !== null && pointerMode ? "pointer" : "default";
+  };
+
+  canvas.addEventListener("mousemove", (e) => {
+    if ((e.buttons & 1) !== 0 && leftDownPos) {
+      const dx = e.clientX - leftDownPos.x;
+      const dy = e.clientY - leftDownPos.y;
+      if ((dx * dx) + (dy * dy) > 9) leftDragMoved = true;
+    }
+
+    if (S.mode === "box" || transientBoxSelectActive) {
+      onBoxMove(e);
+      return;
+    }
+
+    if (!hoverModes.has(S.mode)) {
+      if (S.hovered !== null) {
+        S.hovered = null;
+        updateAtomVisuals();
+      }
+      return;
+    }
+
+    // While dragging (button pressed), skip hover raycasts.
+    if (e.buttons !== 0) return;
+
+    pendingHover = { clientX: e.clientX, clientY: e.clientY };
+    if (!hoverTickScheduled) {
+      hoverTickScheduled = true;
+      requestAnimationFrame(runHoverHitTest);
     }
   });
 
@@ -317,22 +253,68 @@ export function setupCanvasEvents() {
 
   canvas.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
+    leftDownPos = { x: e.clientX, y: e.clientY };
+    leftDragMoved = false;
+
+    // Don't start box-select when interacting with the gizmo
+    if (isGizmoActive()) return;
+
+    if ((S.mode === "orbit" || TRANSFORM_MODES.has(S.mode)) && e.shiftKey) {
+      transientBoxSelectActive = true;
+      suppressNextSelectClick = false;
+      onBoxStart(e);
+      return;
+    }
+
     if (S.mode === "box") onBoxStart(e);
-    else if (S.mode === "drag") onDragStart(e);
-    else if (S.mode === "rotate") onRotateStart(e);
   });
 
   canvas.addEventListener("mouseup", (e) => {
     if (e.button !== 0) return;
+
+    if (transientBoxSelectActive) {
+      const didBoxSelect = onBoxEnd(e);
+      transientBoxSelectActive = false;
+      suppressNextSelectClick = didBoxSelect;
+      return;
+    }
+
     if (S.mode === "box") onBoxEnd(e);
-    else if (S.mode === "drag") onDragEnd();
-    else if (S.mode === "rotate") onRotateEnd();
   });
 
   canvas.addEventListener("click", (e) => {
-    if (S.mode === "select") onSelectClick(e);
-    else if (S.mode === "delete") onDeleteClick(e);
+    // After a gizmo drag, suppress the click so we don't accidentally deselect.
+    if (S.gizmoJustDragged) {
+      S.gizmoJustDragged = false;
+      leftDownPos = null;
+      leftDragMoved = false;
+      return;
+    }
+
+    // Orbit and transform modes share the same click-to-select behaviour.
+    if (S.mode === "orbit" || TRANSFORM_MODES.has(S.mode)) {
+      if (suppressNextSelectClick) {
+        suppressNextSelectClick = false;
+        leftDownPos = null;
+        leftDragMoved = false;
+        return;
+      }
+      if (leftDragMoved) {
+        leftDownPos = null;
+        leftDragMoved = false;
+        return;
+      }
+      onSelectClick(e);
+      leftDownPos = null;
+      leftDragMoved = false;
+      return;
+    }
+
+    if (S.mode === "delete") onDeleteClick(e);
     else if (S.mode === "add") onAddClick(e);
+
+    leftDownPos = null;
+    leftDragMoved = false;
   });
 }
 
@@ -344,8 +326,11 @@ export function setMode(mode) {
     b.classList.toggle("active", b.dataset.mode === mode && mode !== "");
   });
 
-  setOrbitEnabled(mode === "orbit");
+  // Orbit stays enabled in transform modes; gizmo disables it during drag.
+  const orbitActive = mode === "orbit" || TRANSFORM_MODES.has(mode);
+  setOrbitEnabled(orbitActive);
   updateAtomVisuals();
+  updateGizmo();
   updateStatusBar();
 
   const palette = $("#add-atom-palette");
@@ -368,7 +353,7 @@ export function wireToolbar() {
   $("#tb-reset").addEventListener("click", resetCamera);
   $("#tb-save").addEventListener("click", saveStructure);
   $("#tb-delete").addEventListener("click", () => {
-    if (S.mode === "delete") deleteSelected();
+    if (S.mode === "delete") { deleteSelected(); updateGizmo(); }
     else setMode("delete");
   });
 }
@@ -379,25 +364,57 @@ export function wireKeyboardShortcuts() {
   document.addEventListener("keydown", (e) => {
     if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
 
-    if (e.key === "1") setMode("orbit");
-    else if (e.key === "2") setMode("select");
-    else if (e.key === "3") setMode("box");
-    else if (e.key === "4") setMode("drag");
-    else if (e.key === "5") setMode("rotate");
-    else if (e.key === "6") setMode("add");
-    else if (e.key === "7") setMode("delete");
-    else if (e.key === "Delete" || e.key === "Backspace") deleteSelected();
-    else if (e.key === "Escape") {
+    // ── Fine adjustment (WASD + arrows) when in a transform mode with selection ──
+    if (TRANSFORM_MODES.has(S.mode) && S.selected.size > 0) {
+      let dir = null;
+      if (e.key === "ArrowUp" || e.key.toLowerCase() === "w")                              dir = "up";
+      else if (e.key === "ArrowDown" || e.key.toLowerCase() === "s")                        dir = "down";
+      else if (e.key === "ArrowLeft" || (e.key.toLowerCase() === "a" && !e.ctrlKey && !e.metaKey)) dir = "left";
+      else if (e.key === "ArrowRight" || e.key.toLowerCase() === "d")                       dir = "right";
+
+      if (dir) { e.preventDefault(); nudgeTransform(dir); return; }
+    }
+
+    // ── Mode switches ──
+    if (e.key === "1") { setMode("orbit"); return; }
+    if (e.key === "2") { setMode("box"); return; }
+    if (e.key === "5") { setMode("add"); return; }
+    if (e.key === "6") { setMode("delete"); return; }
+
+    if (!e.ctrlKey && !e.metaKey) {
+      if (e.key.toLowerCase() === "t") { setMode("translate"); return; }
+      if (e.key.toLowerCase() === "r") { setMode("rotate"); return; }
+    }
+      if (e.key.toLowerCase() === "e") { setMode("scale"); return; }
+
+    // ── View direction ──
+    if (e.key.toLowerCase() === "x") { setViewDirection("x"); return; }
+    if (e.key.toLowerCase() === "y") { setViewDirection("y"); return; }
+    if (e.key.toLowerCase() === "z") { setViewDirection("z"); return; }
+
+    // ── Delete / Escape / Save / Select-all ──
+    if (e.key === "Delete" || e.key === "Backspace") {
+      deleteSelected();
+      updateGizmo();
+      return;
+    }
+    if (e.key === "Escape") {
       S.selected.clear();
       updateAtomVisuals();
+      updateGizmo();
       updateStatusBar();
-    } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
       saveStructure();
-    } else if (e.key.toLowerCase() === "a" && (e.ctrlKey || e.metaKey)) {
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
       e.preventDefault();
       S.selected = new Set(S.atoms.map((a) => a.id));
       updateAtomVisuals();
+      updateGizmo();
       updateStatusBar();
     }
   });

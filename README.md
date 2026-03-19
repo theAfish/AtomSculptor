@@ -24,11 +24,10 @@ sudo apt-get install -y bubblewrap socat ripgrep
 ## 1) Create Python environment
 
 ```bash
-cd /home/notfish/dev/AtomSculptor
+cd AtomSculptor
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
-pip install google-adk pyyaml
+pip install -e .
 ```
 
 If you use a different model backend, also install any provider SDK required by your LiteLLM model setup.

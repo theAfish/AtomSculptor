@@ -4,7 +4,7 @@
 
 import { S } from "./state.js";
 import { $ } from "./utils.js";
-import { handleMsg } from "./chat.js";
+import { handleMsg, setProcessing, appendError } from "./chat.js";
 
 let reconnectTimer = null;
 
@@ -23,6 +23,10 @@ export function connect() {
     S.connected = false;
     $("#ws-dot").classList.remove("ok");
     $("#ws-label").textContent = "Disconnected";
+    if (S.processing) {
+      setProcessing(false);
+      appendError("Connection lost — the server stopped responding. Your request was not completed.");
+    }
     if (!reconnectTimer) {
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
@@ -31,7 +35,12 @@ export function connect() {
     }
   };
 
-  S.ws.onerror = () => {};
+  S.ws.onerror = () => {
+    if (S.processing) {
+      setProcessing(false);
+      appendError("WebSocket error — connection to the server failed.");
+    }
+  };
 
   S.ws.onmessage = (e) => {
     try {

@@ -4,13 +4,8 @@ from google.adk.models.lite_llm import LiteLlm
 
 from agent_team.tools.code_graph_tools import ask_code_graph_local
 from sandbox.tools import (
-    sandbox_create_directory,
-    sandbox_delete_path,
-    sandbox_list_files,
-    sandbox_read_file,
     sandbox_run_command,
     sandbox_status,
-    sandbox_write_file,
 )
 from settings import settings
 
@@ -34,11 +29,6 @@ mp_searcher = Agent(
     tools=[
         ask_code_graph_local,
         sandbox_status,
-        # sandbox_list_files,
-        # sandbox_read_file,
-        # sandbox_write_file,
-        # sandbox_create_directory,
-        # sandbox_delete_path,
         sandbox_run_command,
     ],
     output_key="last_mp_searcher_result",

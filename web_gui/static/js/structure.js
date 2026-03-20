@@ -1,5 +1,6 @@
 /**
- * structure.js – Structure data operations: load, save, format detection.
+ * structure.js – Structure data operations: load, save, undo/redo,
+ *                format detection, and structure building API calls.
  */
 
 import {
@@ -164,6 +165,22 @@ export function isStructureFilename(name) {
     || base.startsWith(`${prefix}-`)
     || base.startsWith(`${prefix}.`)
   ));
+}
+
+/**
+ * Check if a tool result references a structure file and auto-load it.
+ * Called from websocket.js after rendering tool results.
+ */
+export function tryAutoLoadFromResult(result) {
+  if (!result || typeof result !== "object") return;
+  for (const key of Object.keys(result)) {
+    const val = result[key];
+    if (typeof val !== "string") continue;
+    if (isStructureFilename(val)) {
+      loadStructure(val);
+      return;
+    }
+  }
 }
 
 export function updateStatusBar() {

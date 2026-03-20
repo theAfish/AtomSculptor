@@ -3,7 +3,6 @@
  */
 
 import { $, esc, fmtSize } from "./utils.js";
-import { STRUCTURE_EXTS, STRUCTURE_PREFIXES } from "./state.js";
 import { loadStructure, isStructureFilename } from "./structure.js";
 
 function isStructureItem(item) {

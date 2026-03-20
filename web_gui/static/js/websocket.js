@@ -1,12 +1,39 @@
 /**
- * websocket.js – WebSocket connection management and message dispatch.
+ * websocket.js – WebSocket connection, message routing, and dispatch.
+ *
+ * All incoming server messages are routed through handleMsg() to the
+ * appropriate rendering module (chat, todo, filesystem, structure).
  */
 
 import { S } from "./state.js";
 import { $ } from "./utils.js";
-import { handleMsg, setProcessing, appendError } from "./chat.js";
+import {
+  appendUser, appendAgent, appendToolCall, appendToolResult,
+  appendError, setProcessing,
+} from "./chat.js";
+import { updateTodo, updateAggregatorHint } from "./todo.js";
+import { renderFiles } from "./filesystem.js";
+import { tryAutoLoadFromResult } from "./structure.js";
 
 let reconnectTimer = null;
+
+function handleMsg(m) {
+  switch (m.type) {
+    case "user_message": appendUser(m.text); break;
+    case "agent_message": appendAgent(m.author, m.text); break;
+    case "tool_call": appendToolCall(m.author, m.tool, m.args); break;
+    case "tool_result":
+      appendToolResult(m.author, m.tool, m.result);
+      tryAutoLoadFromResult(m.result);
+      break;
+    case "todo_flow_update": updateTodo(m.data); break;
+    case "files_update": renderFiles(m.data); break;
+    case "aggregator_status": updateAggregatorHint(m.data); break;
+    case "done": setProcessing(false); break;
+    case "error": appendError(m.text, m.traceback); setProcessing(false); break;
+    default: break;
+  }
+}
 
 export function connect() {
   if (S.ws && S.ws.readyState <= 1) return;

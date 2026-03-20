@@ -1,14 +1,12 @@
 /**
- * chat.js – Chat panel rendering, message dispatch, and processing indicators.
+ * chat.js – Chat panel rendering, message sending, and processing indicators.
+ *
+ * Message routing (handleMsg) lives in websocket.js alongside the connection.
  */
 
 import { S } from "./state.js";
 import { $, esc, renderMd, jsonPretty } from "./utils.js";
 import { wsSend } from "./websocket.js";
-import { updateTodo } from "./todo.js";
-import { updateAggregatorHint } from "./todo.js";
-import { renderFiles } from "./filesystem.js";
-import { loadStructure, isStructureFilename } from "./structure.js";
 
 const chatEl = () => $("#chat-messages");
 const scrollEl = () => $("#chat-scroll");
@@ -83,7 +81,6 @@ export function appendToolResult(_author, tool, result) {
   const card = makeToolCard("result", "OK", tool, "result", jsonPretty(result));
   chatEl().appendChild(card);
   scrollBottom();
-  autoLoadStructure(result);
 }
 
 export function appendError(text, tb) {
@@ -125,34 +122,6 @@ export function setProcessing(v) {
   if (!v) removeProcessing();
 }
 
-function autoLoadStructure(result) {
-  if (!result || typeof result !== "object") return;
-  for (const key of Object.keys(result)) {
-    const val = result[key];
-    if (typeof val !== "string") continue;
-    if (isStructureFilename(val)) {
-      loadStructure(val);
-      return;
-    }
-  }
-}
-
-export function handleMsg(m) {
-  switch (m.type) {
-    case "user_message": appendUser(m.text); break;
-    case "agent_message": appendAgent(m.author, m.text); break;
-    case "tool_call": appendToolCall(m.author, m.tool, m.args); break;
-    case "tool_result": appendToolResult(m.author, m.tool, m.result); break;
-    case "todo_flow_update": updateTodo(m.data); break;
-    case "files_update": renderFiles(m.data); break;
-    case "aggregator_status": updateAggregatorHint(m.data); break;
-    case "done": setProcessing(false); break;
-    case "error": appendError(m.text, m.traceback); setProcessing(false); break;
-    default:
-      break;
-  }
-}
-
 export function sendChat() {
   const input = $("#chat-input");
   const text = input.value.trim();
@@ -179,6 +148,4 @@ export function wireChat() {
 
   $("#send-btn").addEventListener("click", sendChat);
   $("#btn-clear-chat").addEventListener("click", () => { chatEl().innerHTML = ""; });
-  $("#btn-refresh-todo").addEventListener("click", () => wsSend({ type: "refresh_todo" }));
-  $("#btn-refresh-files").addEventListener("click", () => wsSend({ type: "refresh_files" }));
 }

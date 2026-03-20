@@ -684,6 +684,25 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
 }
 .tree-toggle.open { transform: rotate(90deg); }
 
+/* Context menu for file tree */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 140px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.context-menu .context-menu-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.context-menu .context-menu-item:hover { background: var(--bg-hover); color: var(--text); }
+
 /* ── Tool panels (Surface, Supercell) ──────────────────────────────────── */
 .tool-panel {
   position: absolute;

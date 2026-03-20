@@ -742,3 +742,14 @@ export async function buildSupercell(matrix) {
   applyBuiltStructure(data);
   return data;
 }
+
+// Listen for viewer-driven open requests (e.g., drag-and-drop onto viewer)
+document.addEventListener("atomsculptor:open-structure", (event) => {
+  try {
+    if (event && event.detail && event.detail.path) {
+      loadStructure(event.detail.path);
+    }
+  } catch (e) {
+    console.error("open-structure handler", e);
+  }
+});

@@ -114,6 +114,30 @@ export function initViewer() {
   resizeRenderer();
   new ResizeObserver(resizeRenderer).observe(wrap);
   loop();
+
+  // Allow dropping structure files onto the viewer to open them.
+  wrap.addEventListener("dragover", (event) => {
+    const types = event.dataTransfer && event.dataTransfer.types ? event.dataTransfer.types : [];
+    const hasStructure = (types.includes && types.includes("application/x-atomsculptor-structure-path"))
+      || (types.includes && types.includes("text/plain"));
+    if (!hasStructure) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    wrap.classList.add("drop-target");
+  });
+
+  wrap.addEventListener("dragleave", () => {
+    wrap.classList.remove("drop-target");
+  });
+
+  wrap.addEventListener("drop", (event) => {
+    event.preventDefault();
+    wrap.classList.remove("drop-target");
+    const path = event.dataTransfer.getData("application/x-atomsculptor-structure-path")
+      || event.dataTransfer.getData("text/plain");
+    if (!path) return;
+    document.dispatchEvent(new CustomEvent("atomsculptor:open-structure", { detail: { path } }));
+  });
 }
 
 function resizeRenderer() {
@@ -190,18 +214,38 @@ function createOrthoCamera() {
 
 export function setCameraMode(mode) {
   if (mode === S.cameraMode) return;
+
+  // Preserve transform and view target when switching cameras
+  const oldCam = S.camera;
+  const target = S.controls ? S.controls.target.clone() : new THREE.Vector3(0, 0, 0);
+
   if (mode === "orthographic") {
     if (!S.orthoCamera) createOrthoCamera();
+    // copy transform from current camera
+    S.orthoCamera.position.copy(oldCam.position);
+    S.orthoCamera.quaternion.copy(oldCam.quaternion);
+    S.orthoCamera.up.copy(oldCam.up);
+    S.orthoCamera.lookAt(target);
+    updateOrthoFrustum();
     S.camera = S.orthoCamera;
   } else {
+    // switching back to perspective: ensure persp camera exists
+    if (!S.perspCamera) S.perspCamera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
+    S.perspCamera.position.copy(oldCam.position);
+    S.perspCamera.quaternion.copy(oldCam.quaternion);
+    S.perspCamera.up.copy(oldCam.up);
+    S.perspCamera.lookAt(target);
     S.camera = S.perspCamera;
   }
+
   S.cameraMode = mode;
-  // update controls to point to the new camera object
+  // update controls to point to the new camera object and keep same target
   if (S.controls) {
     S.controls.object = S.camera;
+    S.controls.target.copy(target);
     S.controls.update();
   }
+
   updateCameraClippingPlanes();
   if (S.camera.updateProjectionMatrix) S.camera.updateProjectionMatrix();
 }

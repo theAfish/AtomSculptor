@@ -204,3 +204,98 @@ async def api_structure_build_supercell(request):
         return JSONResponse(data)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+async def api_file_delete(request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    rel = body.get("path", "")
+    if not rel:
+        return JSONResponse({"error": "path required"}, status_code=400)
+
+    root = sandbox_root()
+    fp = (root / rel).resolve()
+    if not is_path_safe(fp, root):
+        return JSONResponse({"error": "access denied"}, status_code=403)
+    if not fp.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if fp.is_dir():
+        return JSONResponse({"error": "directory deletion not supported"}, status_code=400)
+
+    try:
+        fp.unlink()
+        return JSONResponse({"ok": True})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+async def api_file_rename(request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    rel = body.get("path", "")
+    new_name = body.get("new_name", "")
+    if not rel or not new_name:
+        return JSONResponse({"error": "path and new_name required"}, status_code=400)
+
+    # prevent path traversal in new name
+    if "/" in new_name or ".." in new_name or "\\" in new_name:
+        return JSONResponse({"error": "invalid new_name"}, status_code=400)
+
+    root = sandbox_root()
+    fp = (root / rel).resolve()
+    if not is_path_safe(fp, root):
+        return JSONResponse({"error": "access denied"}, status_code=403)
+    if not fp.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    target = fp.parent / new_name
+    if not is_path_safe(target, root):
+        return JSONResponse({"error": "invalid target"}, status_code=400)
+    if target.exists():
+        return JSONResponse({"error": "target exists"}, status_code=400)
+
+    try:
+        fp.rename(target)
+        return JSONResponse({"ok": True, "path": str(target.relative_to(root))})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+async def api_file_duplicate(request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    rel = body.get("path", "")
+    if not rel:
+        return JSONResponse({"error": "path required"}, status_code=400)
+
+    root = sandbox_root()
+    fp = (root / rel).resolve()
+    if not is_path_safe(fp, root):
+        return JSONResponse({"error": "access denied"}, status_code=403)
+    if not fp.exists() or not fp.is_file():
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    from shutil import copy2
+
+    base = fp.stem
+    suffix = fp.suffix
+    candidate = fp.parent / f"{base}_copy{suffix}"
+    counter = 1
+    while candidate.exists():
+        candidate = fp.parent / f"{base}_copy_{counter}{suffix}"
+        counter += 1
+
+    try:
+        copy2(fp, candidate)
+        return JSONResponse({"ok": True, "path": str(candidate.relative_to(root))})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)

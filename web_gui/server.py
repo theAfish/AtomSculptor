@@ -34,6 +34,9 @@ from .routes import (
     api_structure_save,
     api_structure_build_surface,
     api_structure_build_supercell,
+    api_file_delete,
+    api_file_rename,
+    api_file_duplicate,
 )
 from .websocket_handler import ws_chat
 
@@ -53,6 +56,9 @@ app = Starlette(
         Route("/api/structure/build-supercell/", api_structure_build_supercell, methods=["POST"]),
         Route("/api/structure/build_supercell", api_structure_build_supercell, methods=["POST"]),
         Route("/api/structure", api_structure, methods=["GET"]),
+        Route("/api/file/delete", api_file_delete, methods=["POST"]),
+        Route("/api/file/rename", api_file_rename, methods=["POST"]),
+        Route("/api/file/duplicate", api_file_duplicate, methods=["POST"]),
         WebSocketRoute("/ws", ws_chat),
         Mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ],

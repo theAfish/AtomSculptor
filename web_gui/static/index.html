@@ -6,6 +6,16 @@
 <title>AtomSculptor</title>
 <link rel="stylesheet" href="__INDEX_CSS__"/>
 
+<!-- Local icon styling for inline SVG toolbar icons -->
+<style>
+  .tb-btn .icon { width:18px; height:18px; display:inline-block; vertical-align:middle; }
+  .tb-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px; }
+  .tb-btn.active { background:var(--btn-active-bg, rgba(0,0,0,0.06)); }
+  .tb-btn .icon svg { width:100%; height:100%; }
+  .tb-btn .icon path, .tb-btn .icon rect, .tb-btn .icon circle, .tb-btn .icon line { stroke:currentColor; fill: none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .tb-btn .icon .filled { fill:currentColor; stroke:none; }
+</style>
+
 <script src="/static/node_modules/cytoscape/dist/cytoscape.min.js"></script>
 <script src="/static/node_modules/dagre/dist/dagre.min.js"></script>
 <script src="/static/node_modules/cytoscape-dagre/cytoscape-dagre.js"></script>
@@ -61,21 +71,47 @@
     <div class="panel-body">
       <div id="struct-wrap">
         <div id="edit-toolbar">
-          <button class="tb-btn active" id="tb-orbit" data-mode="orbit" data-tip="Orbit (1)">◯</button>
-          <button class="tb-btn" id="tb-box" data-mode="box" data-tip="Box Select (2)">⛶</button>
-          <button class="tb-btn" id="tb-translate" data-mode="translate" data-tip="Translate (W)">✥</button>
-          <button class="tb-btn" id="tb-rotate" data-mode="rotate" data-tip="Rotate (R)">↺</button>
-          <button class="tb-btn" id="tb-scale" data-mode="scale" data-tip="Scale (E)">⤡</button>
+          <button class="tb-btn active" id="tb-orbit" data-mode="orbit" data-tip="Orbit (1)" aria-label="Orbit">
+            <span class="icon icon-orbit">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>
+            </span>
+          </button>
+          <button class="tb-btn" id="tb-box" data-mode="box" data-tip="Box Select (2)" aria-label="Box Select">
+            <span class="icon icon-box"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14"/></svg></span>
+          </button>
+          <button class="tb-btn" id="tb-translate" data-mode="translate" data-tip="Translate (W)" aria-label="Translate">
+            <span class="icon icon-translate"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg></span>
+          </button>
+          <button class="tb-btn" id="tb-rotate" data-mode="rotate" data-tip="Rotate (R)" aria-label="Rotate">
+            <span class="icon icon-rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 0-3.8 7.2"/><polyline points="21 3 21 9 15 9"/></svg></span>
+          </button>
+          <button class="tb-btn" id="tb-scale" data-mode="scale" data-tip="Scale (E)" aria-label="Scale">
+            <span class="icon icon-scale"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 9 3 3 9 3"/><polyline points="21 15 21 21 15 21"/><line x1="3" y1="3" x2="21" y2="21"/></svg></span>
+          </button>
           <div class="tb-sep"></div>
-          <button class="tb-btn" id="tb-add" data-tip="Add Atom (5)">+</button>
-          <button class="tb-btn" id="tb-delete" data-mode="delete" data-tip="Delete (6)">-</button>
+          <button class="tb-btn" id="tb-add" data-tip="Add Atom (5)" aria-label="Add Atom">
+            <span class="icon icon-add"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+          </button>
+          <button class="tb-btn" id="tb-delete" data-mode="delete" data-tip="Delete (6)" aria-label="Delete">
+            <span class="icon icon-delete"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></span>
+          </button>
           <div class="tb-sep"></div>
-          <button class="tb-btn" id="tb-surface" data-tip="Build Surface">◫</button>
-          <button class="tb-btn" id="tb-supercell" data-tip="Build Supercell">⊞</button>
-          <button class="tb-btn" id="tb-lattice" data-tip="Lattice Operations">λ</button>
+          <button class="tb-btn" id="tb-surface" data-tip="Build Surface" aria-label="Build Surface">
+            <span class="icon icon-surface"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 13l9-4 9 4"/><path d="M3 19l9-4 9 4"/></svg></span>
+          </button>
+          <button class="tb-btn" id="tb-supercell" data-tip="Build Supercell" aria-label="Build Supercell">
+            <span class="icon icon-supercell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 4v8l-7 4-7-4V6l7-4z"/><path d="M5 10l7 4 7-4"/></svg></span>
+          </button>
+          <button class="tb-btn" id="tb-lattice" data-tip="Lattice Operations" aria-label="Lattice Operations">
+            <span class="icon icon-lattice"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+          </button>
           <div class="tb-sep"></div>
-          <button class="tb-btn" id="tb-reset" data-tip="Reset View">V</button>
-          <button class="tb-btn" id="tb-save" data-tip="Save (Ctrl+S)">💾</button>
+          <button class="tb-btn" id="tb-reset" data-tip="Reset View" aria-label="Reset View">
+            <span class="icon icon-reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 0-3.8 7.2"/><polyline points="21 3 21 9 15 9"/></svg></span>
+          </button>
+          <button class="tb-btn" id="tb-save" data-tip="Save (Ctrl+S)" aria-label="Save">
+            <span class="icon icon-save"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><rect x="7" y="7" width="10" height="7" class="filled"/></svg></span>
+          </button>
         </div>
 
         <div id="viewer-wrap">

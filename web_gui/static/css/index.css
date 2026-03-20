@@ -662,7 +662,7 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  cursor: pointer;
+  cursor: default;
   white-space: nowrap;
   font-size: 12px;
   user-select: none;

@@ -1,63 +1,78 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Installation script for AtomSculptor with code-graph-rag integration
 
-set -e  # Exit on error
+set -euo pipefail
 
 echo "=========================================="
 echo "AtomSculptor Installation"
 echo "=========================================="
 
 # Check Python version
-echo "Checking Python version..."
-PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
+echo "Checking Python availability and version..."
+if ! command -v python3 > /dev/null 2>&1; then
+    echo "ERROR: python3 not found in PATH"
+    exit 1
+fi
+PYTHON_BIN=$(command -v python3)
+PYTHON_VERSION=$($PYTHON_BIN -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 REQUIRED_VERSION="3.12"
 
 if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$PYTHON_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]; then
     echo "ERROR: Python $REQUIRED_VERSION or higher is required (found: $PYTHON_VERSION)"
     exit 1
 fi
-echo "✓ Python version OK: $PYTHON_VERSION"
+echo "✓ Python version OK: $PYTHON_VERSION (using $PYTHON_BIN)"
 
 # Install main dependencies
 echo ""
 echo "Installing AtomSculptor dependencies..."
-pip install -e .
+"$PYTHON_BIN" -m pip install -e .
 
-# # quickly verify that the local code_graph_rag package is importable
-# python - <<'PYCODE'
-# try:
-#     import code_graph_rag
-#     print("✓ code_graph_rag importable")
-# except ImportError:
-#     echo "⚠️  code_graph_rag not importable – check pyproject.toml package configuration"
-#     exit 1
-# PYCODE
+# quickly verify that the local code_graph_rag package is importable
+python3 - <<'PYCODE'
+import sys
+try:
+    import code_graph_rag
+    print("✓ code_graph_rag importable")
+except ImportError:
+    print("⚠️  code_graph_rag not importable – check pyproject.toml package configuration")
+    sys.exit(1)
+PYCODE
 
-# Ask about optional dependencies
+# Helper to ask yes/no, respects CI/non-interactive environment
+ask_yes_no() {
+    local prompt="$1"
+    if [ "${CI:-}" = "true" ] || [ "${NONINTERACTIVE:-}" = "true" ] || [ "${YES:-}" = "true" ]; then
+        return 1  # default to 'no' in CI/non-interactive
+    fi
+    read -p "$prompt (y/n) " -n 1 -r
+    echo
+    [[ $REPLY =~ ^[Yy]$ ]]
+}
+
 echo ""
-read -p "Install full tree-sitter language support? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if ask_yes_no "Install full tree-sitter language support?"; then
     echo "Installing tree-sitter language parsers..."
-    pip install -e ".[treesitter-full]"
+    "$PYTHON_BIN" -m pip install -e ".[treesitter-full]"
 fi
 
-# Ask about dev dependencies
 echo ""
-read -p "Install development dependencies? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if ask_yes_no "Install development dependencies?"; then
     echo "Installing development dependencies..."
-    pip install -e ".[dev]"
+    "$PYTHON_BIN" -m pip install -e ".[dev]"
 fi
 
 # Check for .env file
 echo ""
 if [ ! -f .env ]; then
-    echo "Creating .env file from template..."
-    cp .env.example .env
-    echo "✓ Created .env file"
-    echo "⚠️  Please edit .env and add your API keys"
+    if [ ! -f .env.example ]; then
+        echo "⚠️  .env.example not found; create .env manually"
+    else
+        echo "Creating .env file from template..."
+        cp .env.example .env
+        echo "✓ Created .env file"
+        echo "⚠️  Please edit .env and add your API keys"
+    fi
 else
     echo "✓ .env file already exists"
 fi
@@ -65,7 +80,7 @@ fi
 # Check for Docker
 echo ""
 echo "Checking for Docker..."
-if command -v docker &> /dev/null; then
+    if command -v docker &> /dev/null; then
     echo "✓ Docker is installed"
     
     # Check if Memgraph is running

@@ -12,13 +12,7 @@ from agent_team.tools.structure_tools import (
     build_interface
 )
 from sandbox.tools import (
-    sandbox_create_directory,
-    sandbox_delete_path,
-    sandbox_list_files,
-    sandbox_read_file,
     sandbox_run_command,
-    sandbox_status,
-    sandbox_write_file,
 )
 from agent_team.tools.planning_tools import (
     complete_task,
@@ -64,12 +58,6 @@ structure_builder = Agent(
         # build_surface,
         # build_interface,
         ask_code_graph_local,
-        # sandbox_status,
-        # sandbox_list_files,
-        # sandbox_read_file,
-        # sandbox_write_file,
-        # sandbox_create_directory,
-        # sandbox_delete_path,
         sandbox_run_command,
         get_plan_summary,
         start_task,

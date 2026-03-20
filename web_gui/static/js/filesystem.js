@@ -137,16 +137,21 @@ function buildTree(items, container, level) {
       row.innerHTML = `<span class='tree-icon'>${icon}</span><span class='tree-name'>${esc(item.name)}</span>`
         + `<span class='tree-size'>${fmtSize(item.size)}</span>`;
       if (isStructureItem(item)) {
-        row.style.cursor = "default";
-        row.classList.add("is-draggable");
-        row.draggable = true;
-        row.title = "Double-click to open in viewport. Drag to add into layers.";
-        row.addEventListener("dblclick", () => loadStructure(item.path));
-        row.addEventListener("dragstart", (event) => {
-          event.dataTransfer.effectAllowed = "copy";
-          event.dataTransfer.setData("application/x-atomsculptor-structure-path", item.path);
-          event.dataTransfer.setData("text/plain", item.path);
-        });
+        const canDrag = Boolean(item && item.path);
+        if (canDrag) {
+          row.classList.add("is-draggable");
+          row.draggable = true;
+          row.title = "Double-click to open in viewport. Drag to add into layers.";
+          row.addEventListener("dblclick", () => loadStructure(item.path));
+          row.addEventListener("dragstart", (event) => {
+            event.dataTransfer.effectAllowed = "copy";
+            event.dataTransfer.setData("application/x-atomsculptor-structure-path", item.path);
+            event.dataTransfer.setData("text/plain", item.path);
+          });
+          row.style.cursor = "pointer";
+        } else {
+          row.style.cursor = "default";
+        }
       }
       // Right-click context menu for file operations (apply to all files)
       row.addEventListener("contextmenu", (event) => {

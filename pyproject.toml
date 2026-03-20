@@ -9,7 +9,7 @@ description = "Structure building agent team"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "google-adk>=1.26.0",
+    "google-adk[a2a]>=1.26.0",
     "litellm>=1.82.0",
     "pyyaml>=6.0.3",
     "pymatgen>=2025.10.7",

@@ -4,8 +4,8 @@ Materials-science agent workspace using Google ADK + Anthropic Sandbox Runtime (
 
 ## Requirements
 
-- Linux (current project environment)
-- Python 3.10+
+- Linux or WSL2 (current project environment)
+- Python 3.12+
 - Node.js + npm
 - `srt` Linux dependencies:
   - `bubblewrap`
@@ -30,15 +30,30 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+Optional extras
+
+- `pip install -e ".[web]"` for web UI runtime (`uvicorn`, `starlette`). **Recommended!**
+- `pip install -e ".[dev]"` for development tooling (`ruff`, `mypy`, `pre-commit`, `pytest`, `pytest-asyncio`).
+- `pip install -e ".[treesitter-full]"` for full Tree-sitter language support (JavaScript/TypeScript/Rust/Go/Scala/Java/C++). Used for code graph RAG.
+
 If you use a different model backend, also install any provider SDK required by your LiteLLM model setup.
 
 ---
 
 ## 2) Install sandbox runtime CLI (`srt`)
 
+Node.js 18+ is required for some frontend dependencies (e.g. `marked`).
+
 ```bash
+# Install the sandbox runtime CLI globally
 npm install -g @anthropic-ai/sandbox-runtime
 srt --help
+
+# Install web GUI frontend dependencies (from the repository root)
+# This uses the lockfile to ensure reproducible installs.
+cd web_gui/static
+npm ci
+cd -
 ```
 
 ---
@@ -49,70 +64,44 @@ Edit `config.yaml`:
 
 ```yaml
 PLANNER_MODEL: "openai/qwen3-max"
-SANDBOX_DIR: "sandbox/runtime"
+SANDBOX_DIR: "sandbox/.runtime"
 ```
 
-You can also override with env vars:
+Set your provider credentials following `.env` (`cp` one from `.env.example`) or your environment variables:
 
 ```bash
-export PLANNER_MODEL="openai/qwen3-max"
-export SANDBOX_DIR="sandbox/runtime"
-```
-
-Set your provider credentials as needed (example):
-
-```bash
-export OPENAI_API_KEY="<your_key>"
+OPENAI_API_KEY="<your_key>"
+OPENAI_API_BASE="<your_base>"
+MP_API_KEY="<your_mp_api>"
 ```
 
 ---
 
 ## 4) Run the agent
 
+We support GUI and CLI modes.
+
 From repo root:
+
+For GUI mode, run:
+
+```bash
+python main.py --web
+```
+
+For CLI mode, run:
 
 ```bash
 adk run agent_team
 ```
 
-If this command fails, verify:
-
-1. Virtual env is active.
-2. `google-adk` is installed in that env.
-3. Model/API credentials are set.
-4. `srt` is installed and Linux deps are present.
-
----
-
-## Sandbox usage in code
-
-The project exposes a Python wrapper around `srt` in `sandbox/core.py`.
-
-Basic pattern:
-
-```python
-from sandbox import Sandbox
-
-sandbox = Sandbox("sandbox/runtime")
-sandbox.add_agent(agent)              # or sandbox.add_agent([agent1, agent2])
-result = sandbox.run("echo hello")
-print(result.stdout)
-```
-
-What it does:
-
-- Creates sandbox workspace folder at `sandbox/runtime`
-- Stores internal sandbox control files under `sandbox/.sandbox_control/`
-  - `sandbox/.sandbox_control/srt-settings.json`
-  - `sandbox/.sandbox_control/agents/<agent_name>/`
-- Runs commands through:
-  - `srt --settings <sandbox_settings_path> <command>`
-
 ---
 
 ## Code-Graph-RAG Integration
 
-AtomSculptor now includes integrated code analysis capabilities using graph-based RAG (Retrieval-Augmented Generation).
+AtomSculptor now includes integrated code analysis capabilities using code-graph-rag.
+
+If using, you need to create a folder that contains the codes like pymatgen, ase, rdkit, etc. and set the path in `TARGET_REPO_PATH` in `config.yaml`. The code analyzer agent will use this path to analyze the code and build the code graph in Memgraph.
 
 ### Quick Setup
 
@@ -126,54 +115,14 @@ AtomSculptor now includes integrated code analysis capabilities using graph-base
    pip install -e ".[treesitter-full]"  # Optional: full language support
    ```
 
+  Note: `./install.sh` supports non-interactive/CI mode. Set `CI=true` or `NONINTERACTIVE=true` to skip prompts.
+
 2. **Start Memgraph** (required for code analysis):
-   ```bash
-   docker run -d -p 7687:7687 -p 7444:7444 -p 3000:3000 \
-     memgraph/memgraph-platform
-   ```
+  ```bash
+  docker pull memgraph/memgraph-platform
+  ```
 
-3. **Configure API keys** in `.env` (copy from `.env.example`):
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your API keys
-   ```
-
-### New Code Analyzer Agent
-
-The `code_analyzer` agent is now available alongside `structure_builder` and `mp_searcher`:
-
-```python
-# Ask the planner to analyze code
-"Analyze the structure of the agent_team module"
-
-# Find specific functions
-"Find the code for the create_plan function"
-
-# Analyze dependencies
-"What modules does the planner agent import?"
-
-# Search for patterns
-"Search for all classes that inherit from Agent"
-```
-
-For detailed documentation, see [CODE_GRAPH_INTEGRATION.md](CODE_GRAPH_INTEGRATION.md).
-
----
-
-## Useful files
-
-- `agent_team/agent.py` — root ADK agent wiring
-- `agent_team/agents/planner.py` — planner definition + tools
-- `sandbox/core.py` — `Sandbox` class
-- `sandbox/tools.py` — file tools used by planner
-- `settings.py` — loads config/env settings
-- `config.yaml` — default runtime config
-
----
-
-## Quick sanity checks
-
-```bash
-python -c "from sandbox import Sandbox; s=Sandbox('sandbox/runtime'); print(s.list_agents())"
-srt --version
-```
+  Run the container as you prefer. Example:
+  ```bash
+  docker run -d --name memgraph -p 7687:7687 memgraph/memgraph-platform
+  ```

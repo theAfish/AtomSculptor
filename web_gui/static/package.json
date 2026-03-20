@@ -10,6 +10,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "three": "^0.183.2"
+    "cytoscape": "^3.30.4",
+    "cytoscape-dagre": "^2.5.0",
+    "dagre": "^0.8.5",
+    "marked": "^15.0.7",
+    "three": "^0.147.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

@@ -1,13 +1,23 @@
 """HTTP route handlers for the web GUI."""
 
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from starlette.responses import HTMLResponse, JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse, Response
 
 from .helpers import STATIC_DIR, asset_url, is_path_safe
 from .filesystem import sandbox_root, build_file_tree
 from .structure import read_structure, write_structure, resolve_ase_io_format
 from .todo import serialize_todo_flow
+
+
+_EXPORT_FORMATS = {
+    "cif": {"ase": "cif", "suffix": ".cif", "content_type": "chemical/x-cif"},
+    "xyz": {"ase": "xyz", "suffix": ".xyz", "content_type": "chemical/x-xyz"},
+    "extxyz": {"ase": "extxyz", "suffix": ".extxyz", "content_type": "chemical/x-extxyz"},
+    "pdb": {"ase": "pdb", "suffix": ".pdb", "content_type": "chemical/x-pdb"},
+    "poscar": {"ase": "vasp", "suffix": ".vasp", "content_type": "text/plain"},
+}
 
 
 async def index(request):
@@ -83,6 +93,50 @@ async def api_structure_save(request):
     try:
         natoms = write_structure(fp, atoms_data, cell, pbc, layers)
         return JSONResponse({"ok": True, "path": rel, "natoms": natoms})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+async def api_structure_export(request):
+    """POST /api/structure/export — convert and download a structure file."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    rel = body.get("path", "")
+    export_format = str(body.get("format", "")).strip().lower()
+
+    if not rel:
+        return JSONResponse({"error": "path required"}, status_code=400)
+    if export_format not in _EXPORT_FORMATS:
+        return JSONResponse({"error": f"Unsupported export format: {export_format}"}, status_code=400)
+
+    root = sandbox_root()
+    fp = (root / rel).resolve()
+    if not is_path_safe(fp, root):
+        return JSONResponse({"error": "access denied"}, status_code=403)
+    if not fp.exists() or not fp.is_file():
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    try:
+        from ase.io import write as ase_write
+
+        atoms = _read_atoms_safe(fp)
+        spec = _EXPORT_FORMATS[export_format]
+        base_name = Path(rel).stem
+
+        with TemporaryDirectory(prefix="atomsculptor-export-") as tmp_dir:
+            tmp_path = Path(tmp_dir) / f"{base_name}{spec['suffix']}"
+            ase_write(str(tmp_path), atoms, format=spec["ase"])
+            payload = tmp_path.read_bytes()
+
+        filename = f"{base_name}{spec['suffix']}"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        }
+        return Response(payload, media_type=spec["content_type"], headers=headers)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 

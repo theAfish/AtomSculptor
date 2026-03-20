@@ -14,6 +14,8 @@ import {
   applyLattice,
   buildSurface,
   buildSupercell,
+  exportStructure,
+  exportStructureWithPicker,
   snapshotStructureState,
 } from "./structure.js";
 import { setMode } from "./editor.js";
@@ -373,6 +375,62 @@ function handleLatticeApply() {
   }
 }
 
+/* ── Export ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Click handler for the Export toolbar button.
+ * On browsers that support the File System Access API (Chrome/Edge) the OS
+ * native "Save As" dialog opens with a format-type selector built in.
+ * On other browsers (Firefox) a compact <dialog> modal lets the user pick
+ * a format before the browser auto-downloads the file.
+ */
+async function triggerExport() {
+  closeAllPanels();
+
+  if ("showSaveFilePicker" in window) {
+    if (!S.structPath) {
+      openExportDialog("No structure loaded.");
+      return;
+    }
+    const name = S.structPath.split("/").pop().replace(/\.[^.]+$/, "") || "structure";
+    const result = await exportStructureWithPicker(name);
+    if (!result.ok && result.error) openExportDialog(result.error);
+    return;
+  }
+
+  // Fallback: show the modal dialog for format selection
+  openExportDialog("");
+}
+
+function openExportDialog(errorMsg) {
+  const dialog = document.getElementById("export-dialog");
+  document.getElementById("ex-error").textContent = errorMsg || "";
+  document.getElementById("ex-format").value = "cif";
+  dialog.showModal();
+}
+
+async function handleDialogExport() {
+  const errorEl = document.getElementById("ex-error");
+  const btn = document.getElementById("ex-save");
+  const format = document.getElementById("ex-format").value;
+
+  errorEl.textContent = "";
+  btn.disabled = true;
+  btn.textContent = "Downloading...";
+
+  try {
+    const result = await exportStructure(format);
+    if (!result.ok) {
+      errorEl.textContent = result.error || "Export failed.";
+      return;
+    }
+    document.getElementById("export-dialog").close();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Download";
+  }
+}
+
 /* ── Wire all panel controls ─────────────────────────────────────────────── */
 
 /** Attach event listeners for all tool panel toolbar buttons and controls. */
@@ -403,4 +461,15 @@ export function wirePanels() {
   $("#la-cancel").addEventListener("click", () => $("#lattice-panel").classList.remove("show"));
   $("#la-update-real").addEventListener("click", handleScaleUpdate);
   $("#la-apply").addEventListener("click", handleLatticeApply);
+
+  // Export
+  $("#tb-export").addEventListener("click", triggerExport);
+
+  const exportDialog = document.getElementById("export-dialog");
+  document.getElementById("ex-cancel").addEventListener("click", () => exportDialog.close());
+  document.getElementById("ex-save").addEventListener("click", handleDialogExport);
+  // Close on backdrop click (clicking outside the dialog box)
+  exportDialog.addEventListener("click", (e) => {
+    if (e.target === exportDialog) exportDialog.close();
+  });
 }

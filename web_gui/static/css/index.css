@@ -750,6 +750,71 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
 }
 .tool-panel-input:focus { border-color: var(--accent); }
 .tool-panel-input-sm { width: 52px; text-align: center; }
+
+/* ── Export dialog ─────────────────────────────────────────────────────── */
+#export-dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg2);
+  color: var(--text);
+  padding: 22px 24px 18px;
+  min-width: 300px;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.65);
+}
+#export-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.52);
+}
+.ex-dlg-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-l);
+  margin-bottom: 14px;
+}
+.ex-dlg-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.ex-dlg-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg1);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 14px;
+}
+.ex-dlg-select:focus { border-color: var(--accent); }
+.ex-dlg-error {
+  font-size: 11px;
+  color: var(--s-blocked);
+  min-height: 16px;
+  margin-bottom: 10px;
+}
+.ex-dlg-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.ex-dlg-btn {
+  padding: 6px 18px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ex-dlg-btn:hover { background: var(--bg-hover); }
+.ex-dlg-btn.primary { background: var(--accent); border-color: var(--accent-l); color: #fff; }
+.ex-dlg-btn.primary:hover { background: var(--accent-l); }
+.ex-dlg-btn:disabled { opacity: 0.5; cursor: default; }
 .sc-matrix {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

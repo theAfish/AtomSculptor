@@ -453,6 +453,108 @@ export async function saveStructure() {
   }
 }
 
+export async function exportStructure(exportFormat) {
+  if (!S.structPath) {
+    return { ok: false, error: "No structure loaded." };
+  }
+
+  try {
+    const resp = await fetch("/api/structure/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: S.structPath,
+        format: exportFormat,
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await parseJsonResponseSafe(resp);
+      return { ok: false, error: err.error || `HTTP ${resp.status}` };
+    }
+
+    const blob = await resp.blob();
+    const dispo = resp.headers.get("Content-Disposition") || "";
+    const match = /filename="?([^";]+)"?/i.exec(dispo);
+    const filename = match ? match[1] : `export.${exportFormat}`;
+
+    const url = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/** – format types understood by the OS save dialog and our backend */
+const EXPORT_FORMAT_TYPES = [
+  { description: "CIF",                accept: { "chemical/x-cif":    [".cif"]    }, format: "cif"    },
+  { description: "XYZ",                accept: { "chemical/x-xyz":    [".xyz"]    }, format: "xyz"    },
+  { description: "Extended XYZ",       accept: { "chemical/x-extxyz": [".extxyz"] }, format: "extxyz" },
+  { description: "POSCAR / VASP",      accept: { "text/plain":        [".vasp"]   }, format: "poscar" },
+  { description: "PDB",                accept: { "chemical/x-pdb":    [".pdb"]    }, format: "pdb"    },
+];
+
+/**
+ * Open the OS-native "Save As" dialog (via the File System Access API) and
+ * write the converted structure to the chosen location.
+ * Returns { ok, error }.  `ok` is true even when the user cancels.
+ */
+export async function exportStructureWithPicker(suggestedName) {
+  if (!S.structPath) {
+    return { ok: false, error: "No structure loaded." };
+  }
+
+  let handle;
+  try {
+    handle = await window.showSaveFilePicker({
+      suggestedName: `${suggestedName}.cif`,
+      types: EXPORT_FORMAT_TYPES.map(({ description, accept }) => ({ description, accept })),
+    });
+  } catch (e) {
+    if (e.name === "AbortError") return { ok: true }; // user cancelled — not an error
+    return { ok: false, error: String(e) };
+  }
+
+  // Derive the format from the extension the user typed/chose
+  const ext = handle.name.split(".").pop().toLowerCase();
+  const spec = EXPORT_FORMAT_TYPES.find(
+    (f) => Object.values(f.accept)[0].includes(`.${ext}`)
+  );
+  const fmt = spec ? spec.format : "cif";
+
+  try {
+    const resp = await fetch("/api/structure/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: S.structPath, format: fmt }),
+    });
+
+    if (!resp.ok) {
+      const err = await parseJsonResponseSafe(resp);
+      return { ok: false, error: err.error || `HTTP ${resp.status}` };
+    }
+
+    const blob = await resp.blob();
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
 export function deleteAtomById(id) {
   deleteAtomsByIds([id]);
 }

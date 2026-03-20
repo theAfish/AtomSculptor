@@ -119,7 +119,8 @@ export function initViewer() {
   wrap.addEventListener("dragover", (event) => {
     const types = event.dataTransfer && event.dataTransfer.types ? event.dataTransfer.types : [];
     const hasStructure = (types.includes && types.includes("application/x-atomsculptor-structure-path"))
-      || (types.includes && types.includes("text/plain"));
+      || (types.includes && types.includes("text/plain"))
+      || (types.includes && types.includes("Files"));
     if (!hasStructure) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
@@ -130,13 +131,49 @@ export function initViewer() {
     wrap.classList.remove("drop-target");
   });
 
-  wrap.addEventListener("drop", (event) => {
+  wrap.addEventListener("drop", async (event) => {
     event.preventDefault();
     wrap.classList.remove("drop-target");
+
     const path = event.dataTransfer.getData("application/x-atomsculptor-structure-path")
       || event.dataTransfer.getData("text/plain");
-    if (!path) return;
-    document.dispatchEvent(new CustomEvent("atomsculptor:open-structure", { detail: { path } }));
+    if (path) {
+      document.dispatchEvent(new CustomEvent("atomsculptor:open-structure", { detail: { path } }));
+      return;
+    }
+
+    const files = Array.from(event.dataTransfer.files || []);
+    if (!files.length) return;
+
+    let firstStructurePath = null;
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const uploadResp = await fetch("/api/file/upload", { method: "POST", body: formData });
+        if (!uploadResp.ok) continue;
+        const uploadData = await uploadResp.json();
+        if (!uploadData.ok || !uploadData.path) continue;
+
+        const name = file.name.toLowerCase();
+        const ext = name.includes(".") ? name.split(".").pop() : "";
+        const isStructure = new Set(["cif", "xyz", "vasp", "poscar", "extxyz", "pdb", "sdf", "mol2", "lxyz"]).has(ext)
+          || ["poscar", "contcar"].some((prefix) => {
+            const base = name.split("/").pop();
+            return base === prefix || base.startsWith(`${prefix}_`) || base.startsWith(`${prefix}-`) || base.startsWith(`${prefix}.`);
+          });
+
+        if (isStructure && !firstStructurePath) {
+          firstStructurePath = uploadData.path;
+        }
+      } catch (err) {
+        console.error("viewer drop upload error", err);
+      }
+    }
+
+    if (firstStructurePath) {
+      document.dispatchEvent(new CustomEvent("atomsculptor:open-structure", { detail: { path: firstStructurePath } }));
+    }
   });
 }
 

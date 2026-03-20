@@ -8,6 +8,64 @@ import { loadStructure, isStructureFilename } from "./structure.js";
 // Context menu singleton
 let __fileContextMenu = null;
 
+async function uploadFileToSandbox(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const resp = await fetch("/api/file/upload", { method: "POST", body: formData });
+  if (!resp.ok) {
+    throw new Error(`Upload failed: ${resp.status} ${resp.statusText}`);
+  }
+  const data = await resp.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  return data;
+}
+
+async function handleFilePanelDrop(event) {
+  if (!event || !event.dataTransfer) return;
+
+  const files = Array.from(event.dataTransfer.files || []);
+  if (!files.length) return;
+
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+
+  for (const file of files) {
+    try {
+      const result = await uploadFileToSandbox(file);
+      if (!result.ok) {
+        console.warn("upload file failed", file.name, result);
+      }
+    } catch (err) {
+      console.error("file upload error", file.name, err);
+    }
+  }
+
+  await refreshFileTree();
+}
+
+function initFilePanelDragDrop() {
+  const fileTree = $("#file-tree");
+  const fileEmpty = $("#file-empty");
+  const dropTargets = [fileTree, fileEmpty].filter(Boolean);
+
+  dropTargets.forEach((target) => {
+    target.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer) return;
+      const hasFiles = Array.from(event.dataTransfer.types || []).includes("Files");
+      if (!hasFiles) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    });
+
+    target.addEventListener("drop", handleFilePanelDrop);
+  });
+}
+
+initFilePanelDragDrop();
+
 async function refreshFileTree() {
   try {
     const resp = await fetch("/api/files");
@@ -184,3 +242,5 @@ export function renderFiles(tree) {
   container.style.display = "block";
   buildTree(tree, container, 0);
 }
+
+export { refreshFileTree };

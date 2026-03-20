@@ -21,6 +21,7 @@ import { connect, wsSend } from "./websocket.js";
 import { wireChat } from "./chat.js";
 import { initGraph } from "./todo.js";
 import { initViewer } from "./viewer.js";
+import { initLayersPanel } from "./layers.js";
 import { setupCanvasEvents, setMode, wireToolbar, wireKeyboardShortcuts } from "./editor.js";
 import { wirePanels } from "./panels.js";
 import { initGizmo } from "./gizmo.js";
@@ -55,7 +56,7 @@ function safeInit(label, fn) {
 
 function initResizablePanels() {
   const app = document.getElementById("app");
-  const panelIds = ["panel-todo", "panel-chat", "panel-struct", "panel-files"];
+  const panelIds = ["panel-todo", "panel-chat", "panel-struct", "panel-right"];
   const minWidth = 140;
 
   document.querySelectorAll(".col-divider").forEach((divider, i) => {
@@ -98,6 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
   safeInit("Chat", wireChat);
   safeInit("Toolbar", wireToolbar);
   safeInit("Panels", wirePanels);
+  safeInit("Layers", initLayersPanel);
   safeInit("Keyboard", wireKeyboardShortcuts);
   safeInit("Task graph", initGraph);
   safeInit("Resizable panels", initResizablePanels);

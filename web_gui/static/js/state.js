@@ -18,6 +18,9 @@ export const S = {
 
   structPath: null,
   atoms: [],
+  layers: [],
+  selectedLayerIds: new Set(),
+  layerSeq: 0,
   cell: null,
   pbc: [false, false, false],
   undoStack: [],

@@ -238,11 +238,30 @@
     </div>
   </div>
 
-  <div class="panel" id="panel-files">
-    <div class="panel-hdr"><span>Workspace</span><button id="btn-refresh-files" title="Refresh">↻</button></div>
-    <div class="panel-body">
-      <div id="file-tree"></div>
-      <div id="file-empty">No files yet.</div>
+  <div id="panel-right">
+    <div class="panel" id="panel-files">
+      <div class="panel-hdr"><span>Workspace</span><button id="btn-refresh-files" title="Refresh">↻</button></div>
+      <div class="panel-body">
+        <div id="file-tree"></div>
+        <div id="file-empty">No files yet.</div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-layers">
+      <div class="panel-hdr">
+        <span>Layers</span>
+        <div class="layer-hdr-actions">
+          <button id="btn-add-layer" title="Add atoms layer">＋</button>
+          <button id="btn-del-layer" title="Delete selected atoms layers">✕</button>
+        </div>
+      </div>
+      <div class="panel-body" id="layers-body">
+        <div id="layer-actions">
+          <button id="btn-merge-layer" class="layer-action-btn" title="Merge selected atoms layers">Merge</button>
+        </div>
+        <div id="layer-list"></div>
+        <div id="layer-empty">No layers yet.</div>
+      </div>
     </div>
   </div>
 </div>

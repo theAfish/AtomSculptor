@@ -296,8 +296,17 @@ function applyAtomVisualById(id) {
   if (idx === undefined) return;
   const mesh = S.atomMeshes[idx];
   if (!mesh) return;
+  const atom = S.atoms[idx];
+  const inSelectedLayer = Boolean(atom && S.selectedLayerIds.has(atom.layerId));
 
   const base = mesh.userData.baseColor;
+  if (!inSelectedLayer) {
+    mesh.material.color.copy(base).lerp(new THREE.Color(0x555555), 0.6);
+    mesh.material.emissive.set(0x000000);
+    mesh.scale.setScalar(1);
+    return;
+  }
+
   if (S.selected.has(id)) {
     mesh.material.color.set(0xffdd44);
     mesh.material.emissive.set(0x443300);

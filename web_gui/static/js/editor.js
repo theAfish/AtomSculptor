@@ -14,6 +14,7 @@ import {
 import {
   deleteAtomById,
   deleteSelected,
+  isAtomIdInSelectedLayers,
   redoStructureEdit,
   saveStructure,
   undoStructureEdit,
@@ -39,6 +40,16 @@ function onSelectClick(e) {
   }
 
   const id = atomIdFromMesh(hit.object);
+  if (!isAtomIdInSelectedLayers(id)) {
+    if (!e.shiftKey) {
+      S.selected.clear();
+      updateAtomVisuals();
+      updateGizmo();
+      updateStatusBar();
+    }
+    return;
+  }
+
   if (e.shiftKey) {
     S.selected.add(id);
   } else {
@@ -56,7 +67,9 @@ function onSelectClick(e) {
 function onDeleteClick(e) {
   const hit = raycastAtoms(e);
   if (!hit) return;
-  deleteAtomById(atomIdFromMesh(hit.object));
+  const id = atomIdFromMesh(hit.object);
+  if (!isAtomIdInSelectedLayers(id)) return;
+  deleteAtomById(id);
   updateGizmo();
 }
 
@@ -126,7 +139,10 @@ function onBoxEnd(e) {
   for (const mesh of S.atomMeshes) {
     proj.copy(mesh.position).project(S.camera);
     if (proj.x >= x0 && proj.x <= x1 && proj.y <= y0 && proj.y >= y1) {
-      S.selected.add(mesh.userData.atomId);
+      const atomId = mesh.userData.atomId;
+      if (isAtomIdInSelectedLayers(atomId)) {
+        S.selected.add(atomId);
+      }
     }
   }
 
@@ -390,7 +406,7 @@ export function wireKeyboardShortcuts() {
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
       e.preventDefault();
-      S.selected = new Set(S.atoms.map((a) => a.id));
+      S.selected = new Set(S.atoms.filter((a) => isAtomIdInSelectedLayers(a.id)).map((a) => a.id));
       updateAtomVisuals();
       updateGizmo();
       updateStatusBar();

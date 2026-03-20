@@ -11,7 +11,9 @@ import {
   MAX_UNDO_ENTRIES,
 } from "./state.js";
 import { $ } from "./utils.js";
-import { rebuildScene, resetCamera } from "./viewer.js";
+import { rebuildScene, resetCamera, updateAtomVisuals } from "./viewer.js";
+
+export const LAYERS_CHANGED_EVENT = "atomsculptor:layers-changed";
 
 function cloneAtoms(atoms) {
   return atoms.map((atom) => ({ ...atom }));
@@ -25,6 +27,18 @@ function clonePbc(pbc) {
   return Array.isArray(pbc) ? [...pbc] : [false, false, false];
 }
 
+function cloneLayers(layers) {
+  return layers.map((layer) => ({
+    ...layer,
+    cell: cloneCell(layer.cell),
+    pbc: clonePbc(layer.pbc),
+  }));
+}
+
+function sortComparable(left, right) {
+  return String(left).localeCompare(String(right), undefined, { numeric: true });
+}
+
 function atomListsEqual(left, right) {
   if (left.length !== right.length) return false;
   for (let i = 0; i < left.length; i += 1) {
@@ -36,6 +50,7 @@ function atomListsEqual(left, right) {
       || a.x !== b.x
       || a.y !== b.y
       || a.z !== b.z
+      || a.layerId !== b.layerId
     ) {
       return false;
     }
@@ -68,28 +83,165 @@ function arraysEqual(left, right) {
   return true;
 }
 
+function layerListsEqual(left, right) {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (
+      a.id !== b.id
+      || a.type !== b.type
+      || a.name !== b.name
+      || !matrixListsEqual(a.cell, b.cell)
+      || !arraysEqual(a.pbc, b.pbc)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function structureStatesEqual(left, right) {
   return (
     atomListsEqual(left.atoms, right.atoms)
+    && layerListsEqual(left.layers, right.layers)
     && matrixListsEqual(left.cell, right.cell)
     && arraysEqual(left.pbc, right.pbc)
     && arraysEqual(left.selected, right.selected)
+    && arraysEqual(left.selectedLayers, right.selectedLayers)
+    && left.layerSeq === right.layerSeq
   );
+}
+
+function emitLayersChanged() {
+  document.dispatchEvent(new CustomEvent(LAYERS_CHANGED_EVENT));
+}
+
+function createLayerId() {
+  S.layerSeq += 1;
+  return `atoms-${S.layerSeq}`;
+}
+
+function getLatticeLayer() {
+  return S.layers.find((layer) => layer.type === "lattice") || null;
+}
+
+function getAtomLayerMap() {
+  return new Map(S.layers.filter((layer) => layer.type === "atoms").map((layer) => [layer.id, layer]));
+}
+
+export function getAtomLayers() {
+  return S.layers.filter((layer) => layer.type === "atoms");
+}
+
+export function getPrimarySelectedAtomLayerId() {
+  for (const layer of S.layers) {
+    if (layer.type === "atoms" && S.selectedLayerIds.has(layer.id)) return layer.id;
+  }
+  return getAtomLayers()[0]?.id || null;
+}
+
+export function isAtomIdInSelectedLayers(atomId) {
+  const atom = S.atoms.find((candidate) => candidate.id === atomId);
+  if (!atom) return false;
+  return S.selectedLayerIds.has(atom.layerId);
+}
+
+function initializeDefaultLayers(cell, pbc) {
+  S.layerSeq = 1;
+  const atomLayerId = "atoms-1";
+  S.layers = [
+    {
+      id: "lattice",
+      type: "lattice",
+      name: "Lattice",
+      cell: cloneCell(cell),
+      pbc: clonePbc(pbc),
+    },
+    {
+      id: atomLayerId,
+      type: "atoms",
+      name: "Atoms 1",
+      cell: cloneCell(cell),
+      pbc: clonePbc(pbc),
+    },
+  ];
+  S.selectedLayerIds = new Set([atomLayerId]);
+}
+
+function normalizeLayerState() {
+  if (!Array.isArray(S.layers) || !S.layers.length) {
+    initializeDefaultLayers(S.cell, S.pbc);
+  }
+
+  let lattice = getLatticeLayer();
+  if (!lattice) {
+    lattice = {
+      id: "lattice",
+      type: "lattice",
+      name: "Lattice",
+      cell: cloneCell(S.cell),
+      pbc: clonePbc(S.pbc),
+    };
+    S.layers.unshift(lattice);
+  }
+
+  if (!Array.isArray(lattice.cell) || lattice.cell.length !== 3) lattice.cell = cloneCell(S.cell);
+  if (!Array.isArray(lattice.pbc) || lattice.pbc.length !== 3) lattice.pbc = clonePbc(S.pbc);
+
+  let atomLayers = getAtomLayers();
+  if (!atomLayers.length) {
+    const id = createLayerId();
+    S.layers.push({ id, type: "atoms", name: "Atoms", cell: cloneCell(S.cell), pbc: clonePbc(S.pbc) });
+    atomLayers = getAtomLayers();
+  }
+
+  const atomLayerIds = new Set(atomLayers.map((layer) => layer.id));
+  if (!(S.selectedLayerIds instanceof Set)) {
+    S.selectedLayerIds = new Set();
+  }
+  S.selectedLayerIds = new Set([...S.selectedLayerIds].filter((id) => atomLayerIds.has(id)));
+  if (!S.selectedLayerIds.size) {
+    S.selectedLayerIds = new Set([atomLayers[0].id]);
+  }
+
+  for (const atom of S.atoms) {
+    if (!atom.layerId || !atomLayerIds.has(atom.layerId)) {
+      atom.layerId = atomLayers[0].id;
+    }
+  }
+
+  const seqCandidate = atomLayers
+    .map((layer) => Number.parseInt(String(layer.id).replace("atoms-", ""), 10))
+    .filter((value) => Number.isFinite(value));
+  S.layerSeq = Math.max(S.layerSeq || 0, seqCandidate.length ? Math.max(...seqCandidate) : 1);
 }
 
 function normalizeSelection(selected) {
   const atomIds = new Set(S.atoms.map((atom) => atom.id));
-  return new Set(selected.filter((id) => atomIds.has(id)));
+  return new Set(selected.filter((id) => atomIds.has(id) && isAtomIdInSelectedLayers(id)));
+}
+
+export function enforceLayerSelectionConstraints() {
+  S.selected = normalizeSelection([...S.selected]);
+  if (S.hovered !== null && !isAtomIdInSelectedLayers(S.hovered)) {
+    S.hovered = null;
+  }
 }
 
 function applyStructureState(state) {
-  S.atoms = cloneAtoms(state.atoms);
+  S.atoms = cloneAtoms(state.atoms || []);
+  S.layers = cloneLayers(state.layers || []);
+  S.selectedLayerIds = new Set(state.selectedLayers || []);
+  S.layerSeq = Number.isFinite(state.layerSeq) ? state.layerSeq : 1;
   S.cell = cloneCell(state.cell);
   S.pbc = clonePbc(state.pbc);
-  S.selected = normalizeSelection(state.selected);
+  normalizeLayerState();
+  S.selected = normalizeSelection(state.selected || []);
   S.hovered = null;
   rebuildScene();
   updateStatusBar();
+  emitLayersChanged();
 }
 
 function pushUndoState(state) {
@@ -98,11 +250,15 @@ function pushUndoState(state) {
 }
 
 export function snapshotStructureState() {
+  normalizeLayerState();
   return {
     atoms: cloneAtoms(S.atoms),
+    layers: cloneLayers(S.layers),
     cell: cloneCell(S.cell),
     pbc: clonePbc(S.pbc),
-    selected: [...S.selected].sort((left, right) => left - right),
+    selected: [...S.selected].sort(sortComparable),
+    selectedLayers: [...S.selectedLayerIds].sort(sortComparable),
+    layerSeq: S.layerSeq,
   };
 }
 
@@ -151,6 +307,7 @@ function deleteAtomsByIds(ids, beforeState = null) {
   if (S.hovered !== null && deletedIdSet.has(S.hovered)) S.hovered = null;
   rebuildScene();
   updateStatusBar();
+  emitLayersChanged();
   recordStructureEdit(snapshot);
   return true;
 }
@@ -186,8 +343,15 @@ export function tryAutoLoadFromResult(result) {
 export function updateStatusBar() {
   $("#sb-mode").textContent = `Mode: ${S.mode.charAt(0).toUpperCase()}${S.mode.slice(1)}`;
   $("#sb-natoms").textContent = `${S.atoms.length} atoms`;
-  $("#sb-sel").textContent = S.selected.size ? `${S.selected.size} selected` : "";
+  const layerCount = S.selectedLayerIds.size;
+  $("#sb-sel").textContent = `${S.selected.size} selected · ${layerCount} layer${layerCount === 1 ? "" : "s"}`;
   $("#sb-hint").textContent = MODE_HINT[S.mode] || "";
+}
+
+function initializeLoadedStructureLayers(data) {
+  initializeDefaultLayers(data.cell, data.pbc);
+  const layerId = getPrimarySelectedAtomLayerId();
+  S.atoms = (data.atoms || []).map((atom) => ({ ...atom, layerId }));
 }
 
 export async function loadStructure(path) {
@@ -200,9 +364,10 @@ export async function loadStructure(path) {
     }
 
     S.structPath = path;
-    S.atoms = data.atoms;
     S.cell = data.cell;
     S.pbc = data.pbc;
+    initializeLoadedStructureLayers(data);
+    normalizeLayerState();
     S.selected = new Set();
     S.hovered = null;
     resetStructureHistory();
@@ -211,6 +376,7 @@ export async function loadStructure(path) {
     $("#viewer-empty").style.display = "none";
     resetCamera();
     updateStatusBar();
+    emitLayersChanged();
   } catch (e) {
     console.error("loadStructure", e);
   }
@@ -254,16 +420,19 @@ export function deleteSelected() {
 }
 
 export function addAtom(atom, beforeState = null) {
+  normalizeLayerState();
   const snapshot = beforeState || snapshotStructureState();
-  S.atoms.push({ ...atom });
+  const layerId = atom.layerId || getPrimarySelectedAtomLayerId() || getAtomLayers()[0].id;
+  S.atoms.push({ ...atom, layerId });
   rebuildScene();
   updateStatusBar();
+  emitLayersChanged();
   recordStructureEdit(snapshot);
 }
 
 export function applyLattice(realMatrix, scaleAtoms) {
   const beforeState = snapshotStructureState();
-  const currentCell = Array.isArray(S.cell) && S.cell.length === 3 ? S.cell : [[1,0,0],[0,1,0],[0,0,1]];
+  const currentCell = Array.isArray(S.cell) && S.cell.length === 3 ? S.cell : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 
   const invertMatrix3 = (m) => {
     const a = m[0][0]; const b = m[0][1]; const c = m[0][2];
@@ -297,18 +466,139 @@ export function applyLattice(realMatrix, scaleAtoms) {
   }
 
   S.cell = realMatrix;
+  const lattice = getLatticeLayer();
+  if (lattice) {
+    lattice.cell = cloneCell(realMatrix);
+    lattice.pbc = clonePbc(S.pbc);
+  }
+  rebuildScene();
+  updateStatusBar();
+  emitLayersChanged();
+  recordStructureEdit(beforeState);
+}
+
+export function setSelectedAtomLayers(layerIds) {
+  normalizeLayerState();
+  const atomLayerMap = getAtomLayerMap();
+  const selected = [...new Set(layerIds)].filter((id) => atomLayerMap.has(id));
+  if (!selected.length) selected.push(getAtomLayers()[0].id);
+
+  const before = [...S.selectedLayerIds].sort(sortComparable);
+  const after = [...selected].sort(sortComparable);
+  if (arraysEqual(before, after)) return false;
+
+  S.selectedLayerIds = new Set(selected);
+  enforceLayerSelectionConstraints();
+  updateAtomVisuals();
+  updateStatusBar();
+  emitLayersChanged();
+  return true;
+}
+
+export function addAtomsLayer() {
+  normalizeLayerState();
+  const beforeState = snapshotStructureState();
+  const id = createLayerId();
+  S.layers.push({
+    id,
+    type: "atoms",
+    name: `Atoms ${S.layerSeq}`,
+    cell: cloneCell(S.cell),
+    pbc: clonePbc(S.pbc),
+  });
+  S.selectedLayerIds = new Set([id]);
+  enforceLayerSelectionConstraints();
+  updateAtomVisuals();
+  updateStatusBar();
+  emitLayersChanged();
+  recordStructureEdit(beforeState);
+  return id;
+}
+
+export function deleteSelectedAtomLayers() {
+  normalizeLayerState();
+  const atomLayers = getAtomLayers();
+  const selectedIds = atomLayers.map((layer) => layer.id).filter((id) => S.selectedLayerIds.has(id));
+  if (!selectedIds.length) return { ok: false, error: "Select at least one atom layer." };
+  if (selectedIds.length >= atomLayers.length) {
+    return { ok: false, error: "At least one atom layer must remain." };
+  }
+
+  const beforeState = snapshotStructureState();
+  const deleted = new Set(selectedIds);
+  S.layers = S.layers.filter((layer) => layer.type !== "atoms" || !deleted.has(layer.id));
+  S.atoms = S.atoms.filter((atom) => !deleted.has(atom.layerId));
+
+  const fallback = getAtomLayers()[0]?.id;
+  S.selectedLayerIds = fallback ? new Set([fallback]) : new Set();
+  enforceLayerSelectionConstraints();
+  rebuildScene();
+  updateStatusBar();
+  emitLayersChanged();
+  recordStructureEdit(beforeState);
+  return { ok: true };
+}
+
+export function mergeSelectedAtomLayers() {
+  normalizeLayerState();
+  const orderedSelected = S.layers
+    .filter((layer) => layer.type === "atoms" && S.selectedLayerIds.has(layer.id))
+    .map((layer) => layer.id);
+  if (orderedSelected.length < 2) {
+    return { ok: false, error: "Select at least two atom layers to merge." };
+  }
+
+  const beforeState = snapshotStructureState();
+  const target = orderedSelected[0];
+  const merged = new Set(orderedSelected.slice(1));
+
+  for (const atom of S.atoms) {
+    if (merged.has(atom.layerId)) atom.layerId = target;
+  }
+  S.layers = S.layers.filter((layer) => !(layer.type === "atoms" && merged.has(layer.id)));
+  S.selectedLayerIds = new Set([target]);
+
+  enforceLayerSelectionConstraints();
+  rebuildScene();
+  updateStatusBar();
+  emitLayersChanged();
+  recordStructureEdit(beforeState);
+  return { ok: true, targetLayerId: target };
+}
+
+export function useLatticeFromLayer(layerId) {
+  normalizeLayerState();
+  const source = S.layers.find((layer) => layer.type === "atoms" && layer.id === layerId);
+  if (!source) return { ok: false, error: "Atom layer not found." };
+
+  if (!Array.isArray(source.cell) || source.cell.length !== 3) {
+    return { ok: false, error: "This atom layer has no lattice metadata." };
+  }
+
+  const lattice = getLatticeLayer();
+  if (!lattice) return { ok: false, error: "Lattice layer not found." };
+
+  const beforeState = snapshotStructureState();
+  lattice.cell = cloneCell(source.cell);
+  lattice.pbc = clonePbc(source.pbc);
+  S.cell = cloneCell(source.cell);
+  S.pbc = clonePbc(source.pbc);
+
   rebuildScene();
   updateStatusBar();
   recordStructureEdit(beforeState);
+  emitLayersChanged();
+  return { ok: true };
 }
 
 // ── Structure building tools ────────────────────────────────────────────────
 
 function applyBuiltStructure(data) {
   S.structPath = data.path;
-  S.atoms = data.atoms;
   S.cell = data.cell;
   S.pbc = data.pbc;
+  initializeLoadedStructureLayers(data);
+  normalizeLayerState();
   S.selected = new Set();
   S.hovered = null;
   resetStructureHistory();
@@ -317,6 +607,7 @@ function applyBuiltStructure(data) {
   $("#viewer-empty").style.display = "none";
   resetCamera();
   updateStatusBar();
+  emitLayersChanged();
 }
 
 async function parseJsonResponseSafe(resp) {
@@ -339,6 +630,39 @@ async function parseJsonResponseSafe(resp) {
   }
 
   return { error: "Server returned an unexpected response." };
+}
+
+export async function appendStructureToLayer(path, targetLayerId) {
+  if (!S.structPath && !S.atoms.length) {
+    await loadStructure(path);
+    return { ok: true, mode: "loaded", addedCount: S.atoms.length };
+  }
+
+  normalizeLayerState();
+  const target = S.layers.find((layer) => layer.type === "atoms" && layer.id === targetLayerId);
+  if (!target) return { ok: false, error: "Target atoms layer not found." };
+
+  const resp = await fetch(`/api/structure?path=${encodeURIComponent(path)}`);
+  const data = await parseJsonResponseSafe(resp);
+  if (data.error) return { ok: false, error: data.error };
+
+  const beforeState = snapshotStructureState();
+  const targetWasEmpty = !S.atoms.some((atom) => atom.layerId === target.id);
+  let nextId = S.atoms.length ? Math.max(...S.atoms.map((atom) => atom.id)) + 1 : 0;
+  const imported = (data.atoms || []).map((atom) => ({ ...atom, id: nextId++, layerId: target.id }));
+  S.atoms.push(...imported);
+
+  // A fresh atoms layer should carry the source structure's lattice metadata.
+  if (targetWasEmpty) {
+    target.cell = cloneCell(data.cell);
+    target.pbc = clonePbc(data.pbc);
+  }
+
+  rebuildScene();
+  updateStatusBar();
+  emitLayersChanged();
+  recordStructureEdit(beforeState);
+  return { ok: true, mode: "append", addedCount: imported.length };
 }
 
 export async function buildSurface(millerIndices, layers, vacuum) {

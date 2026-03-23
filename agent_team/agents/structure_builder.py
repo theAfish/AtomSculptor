@@ -39,8 +39,6 @@ You can use the sandbox_run_command in the runtime sandbox when coding or file o
 Also, you can ask the code graph for usage about packages like PyMatgen, ASE, RDKit, etc. using the ask_code_graph_local tool if needed.
 
 If you are not sure, or get errors while writing codes, ask the code graph for help.
-
-If you need material structures during your work, request them from the MP Searcher or Planner.
 """
 
 

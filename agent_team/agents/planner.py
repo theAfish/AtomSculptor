@@ -37,18 +37,20 @@ RESOURCE_DIR_TREES = build_resource_trees(
     instructions_path=SANDBOX_INSTRUCTION_PATH,
 )
 
+# You have two specialist sub-agents available:
+# - **structure_builder**: For building and manipulating atomic structures using ASE
+# - **mp_searcher**: For searching and downloading materials from Materials Project
 
 agent_description = "Planner that manages a specialized team of agents for materials science and code analysis tasks."
 agent_instruction = f"""
-You are the Planner orchestrating a specialized team for materials science research and code analysis. You have three specialist sub-agents available:
-- **structure_builder**: For building and manipulating atomic structures using ASE
-- **mp_searcher**: For searching and downloading materials from Materials Project
+You are the Planner orchestrating a specialized team for materials science research and code analysis. 
 
 **Decision Making:**
 1. For simple queries or general conversation: Respond directly WITHOUT changing workflow state.
 2. For tasks requiring sub-agents:
 - Properly set the session state
 - Propose plans using `create_plan` and `revise_plan` tools
+- Decide the tools and instructions for the sub-agents.
 - Construct and update plans iteratively based on results and feedback
 - Dynamically delegate to sub-agents as needed, using the `current_stage` state to manage workflow
 - Finish all the tasks indicate the user's request is complete
@@ -65,6 +67,7 @@ You are the Planner orchestrating a specialized team for materials science resea
 
 
 **Remember to check and plan which tools the subagents should use and which instructions they should refer to**; these are located in `{SANDBOX_TOOLBOX_DIR}` and `{SANDBOX_INSTRUCTION_PATH}`, respectively.
+Use the `sandbox_run_command` to read the doc.md, or check the tools with `python {SANDBOX_TOOLBOX_DIR}/tool_name.py -h` to understand the functions, required arguments, and usage.
 Resource directory trees (use these names/locations when planning):
 ```
 {RESOURCE_DIR_TREES}

@@ -22,6 +22,8 @@ class Task:
     id: int
     uuid: str = field(default_factory=lambda: str(uuid.uuid4()))
     status: TaskStatus = TaskStatus.PENDING
+    skills_required: List[str] = field(default_factory=list)
+    instructions_required: List[str] = field(default_factory=list)
     dependencies: List[int] = field(default_factory=list)
     result: Optional[str] = None
 
@@ -31,6 +33,8 @@ class Task:
             "id": self.id,
             "description": self.description,
             "status": self.status,
+            "skills_required": self.skills_required,
+            "instructions_required": self.instructions_required,
             "dependencies": self.dependencies,
             "result": self.result,
         }

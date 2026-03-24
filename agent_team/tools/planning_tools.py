@@ -4,6 +4,7 @@ from agent_team.state import todo_flow
 from agent_team.planning.task import Task, TaskStatus
 from agent_team.planning.plan import Plan
 
+from google.adk.tools.tool_context import ToolContext
 
 def _regularize_dependencies(dependencies: dict) -> dict:
     # Tool-call arguments arrive as JSON, so dependency keys may be strings.
@@ -31,7 +32,9 @@ def reset_plan():
 
 def create_plan(
     tasks: List[str], 
-    dependencies: dict = None
+    dependencies: dict = None,
+    skills_required: dict = None,
+    instructions_required: dict = None,
 ):
     """
     Create a new plan for execution.
@@ -41,6 +44,10 @@ def create_plan(
         dependencies: JSON object mapping task IDs to dependency lists.
             Example: {"2": [1, 3]} means task 2 can only be executed after task 1 and 3.
             Default dependency is sequential, where task n depends on task n-1.
+        skills_required: JSON object mapping task IDs to required skills for the task.
+            Example: {"2": ["build_surface in structure_modelling/structure_tools.py", "structure_modelling/crystal_builder.py"]} means task 2 might requires the two skills in the toolbox.
+        instructions_required: JSON object mapping task IDs to required instructions.
+            Example: {"3": ["interface_building.md"]} means task 3 requires instruction "interface_building".
     """
     
     try:
@@ -59,7 +66,9 @@ def create_plan(
         else:
             # Default sequential dependency: task n depends on task n-1
             deps = [task_id - 1] if task_id > 1 else []
-        task_objects.append(Task(description=desc, id=task_id, dependencies=deps))
+        skills = skills_required.get(task_id, []) if skills_required else []
+        instructions = instructions_required.get(task_id, []) if instructions_required else []
+        task_objects.append(Task(description=desc, id=task_id, dependencies=deps, skills_required=skills, instructions_required=instructions))
 
     plan = Plan(task_objects)
     todo_flow.set_plan(plan)
@@ -73,7 +82,9 @@ def revise_plan(
     add_tasks: List[str], 
     add_dependencies: dict = None, 
     deprecate_tasks: List[int] = None, 
-    remove_dependencies: dict = None
+    remove_dependencies: dict = None,
+    skills_required: dict = None,
+    instructions_required: dict = None,
 ):
     """
     Revise the existing plan.
@@ -83,9 +94,14 @@ def revise_plan(
         add_dependencies: Optional JSON object mapping task IDs to dependency IDs to add.
             Example: {"2": [4, 5]} means task 2 should now also depend on tasks 4 and 5.
         deprecate_tasks: Optional list of task IDs to mark as deprecated (wrong or not needed anymore). 
-                The dependencies of the deprecated tasks will also be removed from other tasks.
+            The dependencies of the deprecated tasks will also be removed from other tasks.
         remove_dependencies: Optional JSON object mapping task IDs to dependency IDs to remove.
             Example: {"3": [1, 2]} means task 3 should no longer depend on tasks 1 and 2.
+        skills_required: Optional JSON object mapping task IDs to required skills for the task.
+            Example: If want to remove all required skills for task 1 and not change others, use {"1": []}. 
+            If want to set skills for task 2 and task 3, use {"2": ["skill1"], "3": ["skill2", "skill3"]}.
+        instructions_required: Optional JSON object mapping task IDs to required instructions.
+            Similar to skills_required.
     """
 
     try:
@@ -105,7 +121,9 @@ def revise_plan(
     for i, desc in enumerate(add_tasks):
         task_id = starting_id + i
         deps = add_dependencies.get(task_id, []) if add_dependencies else []
-        new_tasks.append(Task(description=desc, id=task_id, dependencies=deps))
+        skills = skills_required.get(task_id, []) if skills_required else []
+        instructions = instructions_required.get(task_id, []) if instructions_required else []
+        new_tasks.append(Task(description=desc, id=task_id, dependencies=deps, skills_required=skills, instructions_required=instructions))
 
     todo_flow.revise_plan(
         new_tasks=new_tasks,
@@ -113,6 +131,21 @@ def revise_plan(
         deprecate_tasks=deprecate_tasks,
         remove_dependencies=remove_dependencies
     )
+
+    # Apply skill/instruction updates for existing tasks (including empty lists)
+    if skills_required is not None:
+        for task_id, task_skills in skills_required.items():
+            task = todo_flow.plan.get_task(task_id)
+            if task is None:
+                raise ValueError(f"Task {task_id} not found in plan")
+            task.skills_required = task_skills or []
+
+    if instructions_required is not None:
+        for task_id, task_instructions in instructions_required.items():
+            task = todo_flow.plan.get_task(task_id)
+            if task is None:
+                raise ValueError(f"Task {task_id} not found in plan")
+            task.instructions_required = task_instructions or []
 
     return {
         "status": "success",
@@ -136,7 +169,7 @@ def get_plan_summary(verbose=True):
         "plan": summary
     }
 
-def start_task(task_id: int):
+def start_task(task_id: int, tool_context: ToolContext):
     """
     Mark a task as in progress if it's ready to be started (i.e., all dependencies are met).
     
@@ -145,6 +178,9 @@ def start_task(task_id: int):
     """
     try:
         todo_flow.start_task(task_id)
+        tool_context.state["current_task"] = todo_flow.plan.get_task(task_id).description
+        tool_context.state["skills_to_use"] = todo_flow.plan.get_task(task_id).skills_required
+        tool_context.state["instructions_to_read"] = todo_flow.plan.get_task(task_id).instructions_required
         return {
             "message": f"Task {task_id} started."
         }
@@ -153,7 +189,7 @@ def start_task(task_id: int):
             "error": str(e)
         }
     
-def complete_task(task_id: int, result=None):
+def complete_task(tool_context: ToolContext, task_id: int, result=None):
     """
     Mark a task as completed if it's currently in progress.
     
@@ -163,6 +199,9 @@ def complete_task(task_id: int, result=None):
     """
     try:
         todo_flow.complete_task(task_id, result)
+        tool_context.state["current_task"] = None
+        tool_context.state["skills_to_use"] = []
+        tool_context.state["instructions_to_read"] = []
         return {
             "message": f"Task {task_id} completed."
         }
@@ -197,7 +236,12 @@ if __name__ == "__main__":
         2: [1],  # Task 2 depends on Task 1
         3: [1, 2]  # Task 3 depends on Task 1 and Task 2
     }
-    result = create_plan(descriptions, dependencies)
+    skills_required = {
+        1: ["communication"],
+        2: ["system_design"],
+        3: ["programming"]
+    }
+    result = create_plan(descriptions, dependencies, skills_required=skills_required)
     print(result)
 
     # revise
@@ -206,8 +250,8 @@ if __name__ == "__main__":
         "Task 5: Set up CI/CD pipeline"
     ]
     add_deps = {
-        4: [2,3],  # Task 4 depends on Task 3
-        5: [4]   # Task 5 depends on Task 3
+        4: [2, 3],  # Task 4 depends on Task 2 and Task 3
+        5: [4]   # Task 5 depends on Task 4
     }
     deprecate = [1]  # Deprecate Task 1
     result = revise_plan(

@@ -20,6 +20,10 @@ from pymatgen.analysis.interfaces.coherent_interfaces import CoherentInterfaceBu
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.cif import CifParser
 
+from pymatgen.core import Structure
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
+
 from sandbox.cli_support import (
     annotation_to_cli_type,
     build_cli_parser,
@@ -307,13 +311,14 @@ def build_supercell(folder: str, file_name: str, repetitions: list[int] | list[l
         "output_supercell_file": _display_path(output_file_path),
     }
 
-def build_surface(folder: str, file_name: str, miller_indices: list, layers: int, vacuum: float, output_name: Optional[str] = None) -> dict:
+def build_surface(folder: str, file_name: str, miller_indices: list, layers: int, vacuum: float, output_name: Optional[str] = None, need_conventional: bool = True) -> dict:
     f"""
     Creates a surface slab from a bulk structure.
      - miller_indices is a list of three integers representing the Miller indices of the surface.
      - layers is the number of atomic layers to include in the slab.
      - vacuum is the amount of vacuum (in Å) to add above the slab.
      - output_name is optional; if not provided, the output file will be named based on the input file. Default output format is {DEFAULT_SAVE_TYPE}.
+     - need_conventional indicates whether to convert the structure to its conventional cell before building the surface, which can help ensure correct surface orientation for non-standard cells.
     """
     try:
         if output_name:
@@ -324,6 +329,14 @@ def build_surface(folder: str, file_name: str, miller_indices: list, layers: int
         if len(miller_indices) != 3:
             return {"error": "Miller indices must be a list of three integers."}
         
+        # transform the cell to be conventional if it's not already
+        if need_conventional:
+            struct = Structure.from_ase_atoms(atoms)
+            analyzer = SpacegroupAnalyzer(struct, symprec=0.1)
+
+            conventional_struct = analyzer.get_conventional_standard_structure()
+            atoms = conventional_struct.to_ase_atoms()
+
         # Pass the vacuum directly to `surface` so the returned slab keeps a valid 3D cell.
         slab = surface(atoms, miller_indices, layers, vacuum=vacuum)
         if output_name:

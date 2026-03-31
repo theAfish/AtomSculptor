@@ -711,6 +711,13 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
 #atom-info .ai-count { color: var(--s-progress); margin-top: 4px; }
 
 #file-tree { padding: 4px 0; }
+.file-tree-marquee {
+  position: fixed;
+  z-index: 1200;
+  border: 1px dashed var(--accent-l);
+  background: rgba(0, 122, 204, 0.16);
+  pointer-events: none;
+}
 .tree-item {
   display: flex;
   align-items: center;
@@ -723,6 +730,11 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
 }
 .tree-item:hover { background: var(--bg-hover); }
 .tree-item.selected { background: var(--accent); color: #fff; }
+.tree-item.is-protected .tree-name::after {
+  content: " (protected)";
+  font-size: 10px;
+  color: var(--text3);
+}
 .tree-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
 .tree-name { overflow: hidden; text-overflow: ellipsis; }
 .tree-size { margin-left: auto; font-size: 10px; color: var(--text3); }
@@ -756,6 +768,10 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
   font-size: 13px;
 }
 .context-menu .context-menu-item:hover { background: var(--bg-hover); color: var(--text); }
+.context-menu .context-menu-item.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
 
 /* ── Tool panels (Surface, Supercell) ──────────────────────────────────── */
 .tool-panel {

@@ -46,10 +46,33 @@ async def _push_aggregator_status(websocket: WebSocket) -> None:
         await asyncio.sleep(0.75)
 
 
+async def _push_file_updates(websocket: WebSocket) -> None:
+    """Poll and push file tree updates when changes are detected."""
+    import json
+    last_sent: str | None = None
+    while True:
+        try:
+            root = sandbox_root()
+            current_tree = build_file_tree(root, root)
+            # Use JSON serialization as a simple way to detect changes
+            current_json = json.dumps(current_tree, sort_keys=True, default=str)
+            if current_json != last_sent:
+                if not await _send_json_or_stop(
+                    websocket, {"type": "files_update", "data": current_tree},
+                ):
+                    return
+                last_sent = current_json
+        except Exception:
+            # Silently ignore errors and continue polling
+            pass
+        await asyncio.sleep(0.5)
+
+
 async def ws_chat(websocket: WebSocket):
     await websocket.accept()
     user_id = "web_user"
     status_task: asyncio.Task | None = None
+    file_task: asyncio.Task | None = None
 
     # Create ADK session
     try:
@@ -78,6 +101,7 @@ async def ws_chat(websocket: WebSocket):
         return
 
     status_task = asyncio.create_task(_push_aggregator_status(websocket))
+    file_task = asyncio.create_task(_push_file_updates(websocket))
 
     try:
         while True:
@@ -157,5 +181,11 @@ async def ws_chat(websocket: WebSocket):
             status_task.cancel()
             try:
                 await status_task
+            except asyncio.CancelledError:
+                pass
+        if file_task is not None:
+            file_task.cancel()
+            try:
+                await file_task
             except asyncio.CancelledError:
                 pass

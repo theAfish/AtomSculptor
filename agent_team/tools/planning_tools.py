@@ -122,46 +122,51 @@ def revise_plan(
             "error": f"Invalid dependencies format: {e}. Use JSON objects like {{\"2\": [4, 5]}}."
         }
 
-    flow = get_context().todo_flow
-    if flow.plan is None:
-        raise ValueError("No existing plan to revise. Please create a plan first.")
+    try:
+        flow = get_context().todo_flow
+        if flow.plan is None:
+            raise ValueError("No existing plan to revise. Please create a plan first.")
 
-    # Create new Task objects for the new descriptions
-    starting_id = flow.plan.next_id
-    new_tasks = []
-    for i, desc in enumerate(add_tasks):
-        task_id = starting_id + i
-        deps = add_dependencies.get(task_id, []) if add_dependencies else []
-        skills = skills_required.get(task_id, []) if skills_required else []
-        instructions = instructions_required.get(task_id, []) if instructions_required else []
-        new_tasks.append(Task(description=desc, id=task_id, dependencies=deps, skills_required=skills, instructions_required=instructions))
+        # Create new Task objects for the new descriptions
+        starting_id = flow.plan.next_id
+        new_tasks = []
+        for i, desc in enumerate(add_tasks):
+            task_id = starting_id + i
+            deps = add_dependencies.get(task_id, []) if add_dependencies else []
+            skills = skills_required.get(task_id, []) if skills_required else []
+            instructions = instructions_required.get(task_id, []) if instructions_required else []
+            new_tasks.append(Task(description=desc, id=task_id, dependencies=deps, skills_required=skills, instructions_required=instructions))
 
-    flow.revise_plan(
-        new_tasks=new_tasks,
-        add_dependencies=add_dependencies,
-        deprecate_tasks=deprecate_tasks,
-        remove_dependencies=remove_dependencies
-    )
+        flow.revise_plan(
+            new_tasks=new_tasks,
+            add_dependencies=add_dependencies,
+            deprecate_tasks=deprecate_tasks,
+            remove_dependencies=remove_dependencies
+        )
 
-    # Apply skill/instruction updates for existing tasks (including empty lists)
-    if skills_required is not None:
-        for task_id, task_skills in skills_required.items():
-            task = flow.plan.get_task(task_id)
-            if task is None:
-                raise ValueError(f"Task {task_id} not found in plan")
-            task.skills_required = task_skills or []
+        # Apply skill/instruction updates for existing tasks (including empty lists)
+        if skills_required is not None:
+            for task_id, task_skills in skills_required.items():
+                task = flow.plan.get_task(task_id)
+                if task is None:
+                    raise ValueError(f"Task {task_id} not found in plan")
+                task.skills_required = task_skills or []
 
-    if instructions_required is not None:
-        for task_id, task_instructions in instructions_required.items():
-            task = flow.plan.get_task(task_id)
-            if task is None:
-                raise ValueError(f"Task {task_id} not found in plan")
-            task.instructions_required = task_instructions or []
+        if instructions_required is not None:
+            for task_id, task_instructions in instructions_required.items():
+                task = flow.plan.get_task(task_id)
+                if task is None:
+                    raise ValueError(f"Task {task_id} not found in plan")
+                task.instructions_required = task_instructions or []
 
-    return {
-        "status": "success",
-        "new plan": flow.summary(verbose=True)
-    }
+        return {
+            "status": "success",
+            "new plan": flow.summary(verbose=True)
+        }
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
 
 def get_plan_summary(verbose=True):
     """

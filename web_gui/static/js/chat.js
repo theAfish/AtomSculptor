@@ -117,9 +117,20 @@ export function removeProcessing() {
 
 export function setProcessing(v) {
   S.processing = v;
+  const btn = $("#send-btn");
   $("#chat-input").disabled = v;
-  $("#send-btn").disabled = v;
-  if (!v) removeProcessing();
+  if (v) {
+    btn.textContent = "⏹";
+    btn.title = "Stop";
+    btn.disabled = false;
+    btn.dataset.mode = "stop";
+  } else {
+    btn.textContent = "Send";
+    btn.title = "";
+    btn.dataset.mode = "send";
+    btn.disabled = false;
+    removeProcessing();
+  }
 }
 
 export function sendChat() {
@@ -146,6 +157,13 @@ export function wireChat() {
     }
   });
 
-  $("#send-btn").addEventListener("click", sendChat);
+  $("#send-btn").addEventListener("click", () => {
+    if ($("#send-btn").dataset.mode === "stop") {
+      wsSend({ type: "stop" });
+      setProcessing(false);
+    } else {
+      sendChat();
+    }
+  });
   $("#btn-clear-chat").addEventListener("click", () => { chatEl().innerHTML = ""; });
 }

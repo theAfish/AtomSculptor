@@ -68,11 +68,56 @@ async def _push_file_updates(websocket: WebSocket) -> None:
         await asyncio.sleep(0.5)
 
 
+async def _run_agent_task(
+    websocket: WebSocket, user_id: str, session_id: str, user_text: str
+) -> None:
+    try:
+        content = types.Content(
+            role="user",
+            parts=[types.Part(text=user_text)],
+        )
+        async for event in runner.run_async(
+            user_id=user_id,
+            session_id=session_id,
+            new_message=content,
+        ):
+            for msg in event_to_messages(event):
+                if not await _send_json_or_stop(websocket, msg):
+                    return
+            if not await _send_json_or_stop(
+                websocket,
+                {"type": "todo_flow_update", "data": serialize_todo_flow()},
+            ):
+                return
+
+        if not await _send_json_or_stop(websocket, {"type": "done"}):
+            return
+        root = sandbox_root()
+        await _send_json_or_stop(
+            websocket,
+            {"type": "files_update", "data": build_file_tree(root, root)},
+        )
+    except asyncio.CancelledError:
+        raise
+    except WebSocketDisconnect:
+        return
+    except Exception as exc:
+        await _send_json_or_stop(
+            websocket,
+            {
+                "type": "error",
+                "text": str(exc),
+                "traceback": traceback.format_exc(),
+            },
+        )
+
+
 async def ws_chat(websocket: WebSocket):
     await websocket.accept()
     user_id = "web_user"
     status_task: asyncio.Task | None = None
     file_task: asyncio.Task | None = None
+    agent_task: asyncio.Task | None = None
 
     # Create ADK session
     try:
@@ -103,61 +148,53 @@ async def ws_chat(websocket: WebSocket):
     status_task = asyncio.create_task(_push_aggregator_status(websocket))
     file_task = asyncio.create_task(_push_file_updates(websocket))
 
+    recv_task: asyncio.Task = asyncio.create_task(websocket.receive_json())
     try:
         while True:
-            raw = await websocket.receive_json()
+            wait_set = {recv_task}
+            if agent_task and not agent_task.done():
+                wait_set.add(agent_task)
+
+            done_set, _ = await asyncio.wait(wait_set, return_when=asyncio.FIRST_COMPLETED)
+
+            if agent_task in done_set:
+                agent_task = None
+
+            if recv_task not in done_set:
+                continue
+
+            try:
+                raw = recv_task.result()
+            except (WebSocketDisconnect, Exception):
+                break
+            recv_task = asyncio.create_task(websocket.receive_json())
+
             kind = raw.get("type")
 
             if kind == "chat":
+                if agent_task and not agent_task.done():
+                    continue
                 user_text = raw.get("message", "").strip()
                 if not user_text:
                     continue
-
                 if not await _send_json_or_stop(
                     websocket,
                     {"type": "user_message", "text": user_text, "timestamp": now_iso()},
                 ):
-                    return
+                    break
+                agent_task = asyncio.create_task(
+                    _run_agent_task(websocket, user_id, session_id, user_text)
+                )
 
-                try:
-                    content = types.Content(
-                        role="user",
-                        parts=[types.Part(text=user_text)],
-                    )
-                    async for event in runner.run_async(
-                        user_id=user_id,
-                        session_id=session_id,
-                        new_message=content,
-                    ):
-                        for msg in event_to_messages(event):
-                            if not await _send_json_or_stop(websocket, msg):
-                                return
-                        if not await _send_json_or_stop(
-                            websocket,
-                            {"type": "todo_flow_update", "data": serialize_todo_flow()},
-                        ):
-                            return
-
-                    if not await _send_json_or_stop(websocket, {"type": "done"}):
-                        return
-                    root = sandbox_root()
-                    if not await _send_json_or_stop(
-                        websocket,
-                        {"type": "files_update", "data": build_file_tree(root, root)},
-                    ):
-                        return
-                except WebSocketDisconnect:
-                    return
-                except Exception as exc:
-                    if not await _send_json_or_stop(
-                        websocket,
-                        {
-                            "type": "error",
-                            "text": str(exc),
-                            "traceback": traceback.format_exc(),
-                        },
-                    ):
-                        return
+            elif kind == "stop":
+                if agent_task and not agent_task.done():
+                    agent_task.cancel()
+                    try:
+                        await agent_task
+                    except asyncio.CancelledError:
+                        pass
+                    agent_task = None
+                await _send_json_or_stop(websocket, {"type": "done"})
 
             elif kind == "refresh_files":
                 root = sandbox_root()
@@ -165,18 +202,25 @@ async def ws_chat(websocket: WebSocket):
                     websocket,
                     {"type": "files_update", "data": build_file_tree(root, root)},
                 ):
-                    return
+                    break
 
             elif kind == "refresh_todo":
                 if not await _send_json_or_stop(
                     websocket,
                     {"type": "todo_flow_update", "data": serialize_todo_flow()},
                 ):
-                    return
+                    break
 
     except WebSocketDisconnect:
         pass
     finally:
+        recv_task.cancel()
+        if agent_task is not None:
+            agent_task.cancel()
+            try:
+                await agent_task
+            except asyncio.CancelledError:
+                pass
         if status_task is not None:
             status_task.cancel()
             try:

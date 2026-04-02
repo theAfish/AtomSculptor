@@ -110,7 +110,27 @@ function wireAtomInfoSymbolPicker() {
   changeButton.addEventListener("click", (e) => {
     if (!S.selected || S.selected.size === 0) return;
     e.stopPropagation();
-    picker.style.display = picker.style.display === "none" ? "block" : "none";
+    const isHidden = picker.style.display === "none";
+    if (isHidden) {
+      // When showing the picker, mark the current atom symbol as selected
+      // (only within the atom-info picker) so it reflects edits made earlier.
+      let activeSymbol = null;
+      if (S.selected && S.selected.size > 0) {
+        const id = [...S.selected][0];
+        const atom = S.atoms.find((a) => a.id === id);
+        if (atom) activeSymbol = atom.symbol;
+      } else if (S.hovered !== null) {
+        const atom = S.atoms.find((a) => a.id === S.hovered);
+        if (atom) activeSymbol = atom.symbol;
+      }
+      const table = $("#ai-periodic-table");
+      if (table) {
+        table.querySelectorAll(".pt-elem-btn").forEach((button) => {
+          button.classList.toggle("selected", !!activeSymbol && button.dataset.element === activeSymbol);
+        });
+      }
+    }
+    picker.style.display = isHidden ? "block" : "none";
   });
 
   document.addEventListener("click", (e) => {

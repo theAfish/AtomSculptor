@@ -731,7 +731,9 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
   box-shadow: 0 6px 20px rgba(0,0,0,0.5);
 }
 #ai-symbol-picker .periodic-table {
-  max-height: 170px;
+  /* Increase default picker height so lanthanide/actinide rows are visible */
+  max-height: 320px;
+  overflow: auto;
 }
 
 #file-tree { padding: 4px 0; }

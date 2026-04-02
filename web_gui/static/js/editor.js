@@ -26,7 +26,7 @@ import { updateGizmo, nudgeTransform, isGizmoActive } from "./gizmo.js";
 import { closeAllPanels, toggleAddPanel } from "./panels.js";
 import { toggleSelectionPanel } from "./panels.js";
 import { PERIODIC_TABLE_ROWS, buildPeriodicRow } from "./elements.js";
-import { elemColor } from "./viewer.js";
+import { elemColor, elemTextColor } from "./viewer.js";
 
 const TRANSFORM_MODES = new Set(["translate", "rotate", "scale"]);
 let atomInfoSymbolPickerWired = false;
@@ -38,7 +38,9 @@ function createInfoSymbolButton(elementSymbol) {
   button.textContent = elementSymbol;
   button.title = elementSymbol;
   button.dataset.element = elementSymbol;
-  button.style.color = elemColor(elementSymbol);
+  // Use element color as button background and choose contrasting text color
+  button.style.background = elemColor(elementSymbol);
+  button.style.color = elemTextColor(elementSymbol);
   button.addEventListener("click", () => {
     const changed = setSelectedAtomsSymbol(elementSymbol);
     if (changed) {

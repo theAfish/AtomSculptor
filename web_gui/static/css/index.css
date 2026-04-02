@@ -1103,9 +1103,13 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
   background: linear-gradient(180deg, var(--bg2), var(--bg3));
 }
 .pt-elem-btn.selected {
-  background: var(--accent);
+  z-index: 2;
   border-color: var(--accent-l);
-  color: #fff !important;
+  /* Preserve element text color (set inline); highlight via accent ring and stronger shadow.
+     Use transform scale so the selected element appears larger without reflow. */
+  transform: translateY(-2px) scale(1.18);
+  box-shadow: 0 0 0 3px var(--accent-l), 0 6px 18px rgba(0,0,0,0.28);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 @media (max-width: 1180px) {

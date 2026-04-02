@@ -4,7 +4,7 @@
 
 import { S } from "./state.js";
 import { $, $$, showError, clearError } from "./utils.js";
-import { elemColor } from "./viewer.js";
+import { elemColor, elemTextColor } from "./viewer.js";
 import { addAtom, addAtomsBatch, snapshotStructureState, LAYERS_CHANGED_EVENT } from "./structure.js";
 import { setMode } from "./editor.js";
 import { closeAllPanels } from "./panel-core.js";
@@ -27,7 +27,9 @@ function createElementButton(elementSymbol) {
   button.textContent = elementSymbol;
   button.title = elementSymbol;
   button.dataset.element = elementSymbol;
-  button.style.color = elemColor(elementSymbol);
+  // Use element color as the button background and pick a readable text color
+  button.style.background = elemColor(elementSymbol);
+  button.style.color = elemTextColor(elementSymbol);
   button.addEventListener("click", () => setSelectedAddElement(elementSymbol));
   return button;
 }

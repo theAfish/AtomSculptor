@@ -1,7 +1,7 @@
 """DuckDuckGo search tools for the agent team."""
 
-from duckduckgo_search import DDGS
-from duckduckgo_search.exceptions import DuckDuckGoSearchException
+from ddgs import DDGS
+from ddgs.exceptions import DDGSException
 
 
 def web_search(query: str, max_results: int = 5, region: str = "us-en", timelimit: str | None = None) -> dict:
@@ -17,14 +17,13 @@ def web_search(query: str, max_results: int = 5, region: str = "us-en", timelimi
         Dict with search results list containing title, href, and body for each result.
     """
     try:
-        with DDGS() as ddgs:
-            results = ddgs.text(
-                keywords=query,
-                region=region,
-                max_results=max_results,
-                timelimit=timelimit,
-            )
-    except DuckDuckGoSearchException as e:
+        results = list(DDGS().text(
+            query,
+            region=region,
+            max_results=max_results,
+            timelimit=timelimit,
+        ))
+    except DDGSException as e:
         return {"results": [], "error": str(e)}
     return {"results": results}
 
@@ -42,13 +41,12 @@ def web_search_news(query: str, max_results: int = 5, region: str = "us-en", tim
         Dict with news results list containing date, title, body, url, and source for each result.
     """
     try:
-        with DDGS() as ddgs:
-            results = ddgs.news(
-                keywords=query,
-                region=region,
-                max_results=max_results,
-                timelimit=timelimit,
-            )
-    except DuckDuckGoSearchException as e:
+        results = list(DDGS().news(
+            query,
+            region=region,
+            max_results=max_results,
+            timelimit=timelimit,
+        ))
+    except DDGSException as e:
         return {"results": [], "error": str(e)}
     return {"results": results}

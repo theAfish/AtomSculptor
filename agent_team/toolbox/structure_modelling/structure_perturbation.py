@@ -3,19 +3,12 @@ from sandbox.cli_support import build_cli_parser, run_cli
 from sandbox.runtime_paths import (
     display_path,
     resolve_output_path,
-    sandbox_output_dir,
     sandbox_root,
 )
 
-
-"""
-Tool for perturbing atomic structures by applying random or systematic displacements.
-"""
 import numpy as np
 from pathlib import Path
 from typing import Optional
-
-from ase import Atoms
 from ase.io import read, write
 from ase.data import covalent_radii
 

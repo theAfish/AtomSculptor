@@ -9,6 +9,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from agent_team.aggregator_runner import get_status as get_aggregator_status
 
 from .agent_session import runner, session_service, event_to_messages
+from .file_watcher import file_watcher
 from .filesystem import sandbox_root, build_file_tree
 from .helpers import now_iso
 from .todo import serialize_todo_flow
@@ -48,25 +49,19 @@ async def _push_aggregator_status(websocket: WebSocket) -> None:
 
 
 async def _push_file_updates(websocket: WebSocket) -> None:
-    """Poll and push file tree updates when changes are detected."""
-    import json
-    last_sent: str | None = None
-    while True:
-        try:
-            root = sandbox_root()
-            current_tree = build_file_tree(root, root)
-            # Use JSON serialization as a simple way to detect changes
-            current_json = json.dumps(current_tree, sort_keys=True, default=str)
-            if current_json != last_sent:
-                if not await _send_json_or_stop(
-                    websocket, {"type": "files_update", "data": current_tree},
-                ):
-                    return
-                last_sent = current_json
-        except Exception:
-            # Silently ignore errors and continue polling
-            pass
-        await asyncio.sleep(0.5)
+    """Subscribe to the shared file-tree watcher and push updates to *websocket*.
+
+    The watcher is event-driven (watchdog) and shared across all clients,
+    so this coroutine simply blocks on the queue and forwards each snapshot.
+    """
+    q = file_watcher.subscribe()
+    try:
+        while True:
+            tree = await q.get()
+            if not await _send_json_or_stop(websocket, {"type": "files_update", "data": tree}):
+                return
+    finally:
+        file_watcher.unsubscribe(q)
 
 
 _STORED_MSG_TYPES = {"user_message", "agent_message", "tool_call", "tool_result", "error"}
@@ -165,6 +160,8 @@ async def ws_chat(websocket: WebSocket):
 
     # Push initial state
     root = sandbox_root()
+    # Ensure the shared file watcher is running (no-op if already started)
+    file_watcher.start(asyncio.get_event_loop(), root)
     if not await _send_json_or_stop(
         websocket, {"type": "todo_flow_update", "data": serialize_todo_flow()}
     ):

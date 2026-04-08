@@ -7,10 +7,7 @@ Materials-science agent workspace using Google ADK + Anthropic Sandbox Runtime (
 - Linux or WSL2
 - Python 3.12+
 - Node.js 18+ / npm
-- System packages (Ubuntu/Debian):
-  ```bash
-  sudo apt-get install -y bubblewrap socat ripgrep
-  ```
+- On Debian/Ubuntu, `./install.sh` will automatically install `bubblewrap`, `socat`, `ripgrep`, and the Anthropic sandbox runtime CLI.
 
 ---
 
@@ -21,7 +18,7 @@ git clone <repo-url> && cd AtomSculptor
 ./install.sh
 ```
 
-This creates a `.venv`, installs Python + npm dependencies, and sets up `.env`.
+This creates a `.venv`, installs Python packages, installs the sandbox runtime CLI (`srt`) and its Linux dependencies when supported, installs frontend dependencies, and sets up `.env`.
 
 Flags:
 | Flag | Effect |
@@ -35,6 +32,8 @@ Flags:
 ## Manual Install
 
 ```bash
+sudo apt-get install -y bubblewrap socat ripgrep
+
 python3 -m venv .venv && source .venv/bin/activate
 
 # Core + web GUI (recommended)
@@ -46,6 +45,9 @@ pip install -e ".[treesitter-full]"   # JS/TS/Rust/Go/Scala/Java/C++ parsers
 
 # Frontend
 cd web_gui/static && npm ci && cd -
+
+# Sandbox runtime CLI
+npm install -g @anthropic-ai/sandbox-runtime
 
 # Environment
 cp .env.example .env   # then edit with your API keys

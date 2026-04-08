@@ -149,6 +149,7 @@ class Sandbox:
                 "allowedDomains": [
                     "api.materialsproject.org",
                     "*.materialsproject.org",
+                    
                 ],
                 "deniedDomains": [],
             },

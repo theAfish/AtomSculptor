@@ -621,3 +621,164 @@ async def api_session_delete(request):
     if session_store.delete(sid):
         return JSONResponse({"ok": True})
     return JSONResponse({"error": "session not found"}, status_code=404)
+
+
+async def api_structure_build_interfaces(request):
+    """POST /api/structure/build-interfaces — generate interface candidates between two structures."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    film_rel = body.get("film_path", "")
+    substrate_rel = body.get("substrate_path", "")
+    film_miller = body.get("film_miller", [1, 0, 0])
+    substrate_miller = body.get("substrate_miller", [1, 0, 0])
+    gap = float(body.get("gap", 2.0))
+    vacuum_over_film = float(body.get("vacuum_over_film", 10.0))
+    film_thickness = int(body.get("film_thickness", 3))
+    substrate_thickness = int(body.get("substrate_thickness", 3))
+    in_layers = bool(body.get("in_layers", True))
+    max_interfaces = int(body.get("max_interfaces", 10))
+
+    if not film_rel:
+        return JSONResponse({"error": "film_path required"}, status_code=400)
+    if not substrate_rel:
+        return JSONResponse({"error": "substrate_path required"}, status_code=400)
+
+    root = sandbox_root()
+    film_fp = (root / film_rel).resolve()
+    substrate_fp = (root / substrate_rel).resolve()
+
+    if not is_path_safe(film_fp, root):
+        return JSONResponse({"error": "film_path access denied"}, status_code=403)
+    if not is_path_safe(substrate_fp, root):
+        return JSONResponse({"error": "substrate_path access denied"}, status_code=403)
+    if not film_fp.exists() or not film_fp.is_file():
+        return JSONResponse({"error": "film file not found"}, status_code=404)
+    if not substrate_fp.exists() or not substrate_fp.is_file():
+        return JSONResponse({"error": "substrate file not found"}, status_code=404)
+
+    if not isinstance(film_miller, list) or len(film_miller) != 3:
+        return JSONResponse({"error": "film_miller must be a list of 3 integers"}, status_code=400)
+    if not isinstance(substrate_miller, list) or len(substrate_miller) != 3:
+        return JSONResponse({"error": "substrate_miller must be a list of 3 integers"}, status_code=400)
+
+    try:
+        import numpy as np
+        from pymatgen.analysis.interfaces.coherent_interfaces import CoherentInterfaceBuilder
+        from pymatgen.io.ase import AseAtomsAdaptor
+
+        try:
+            from pymatgen.analysis.interfaces.coherent_interfaces import fix_pbc as _fix_pbc
+        except ImportError:
+            def _fix_pbc(s):
+                return s
+
+        def _load_pmg(fp: Path):
+            suffix = fp.suffix.lower()
+            if suffix in (".cif", ".vasp", ".poscar"):
+                from pymatgen.core import Structure
+                return Structure.from_file(str(fp))
+            else:
+                atoms = _read_atoms_safe(fp)
+                return AseAtomsAdaptor.get_structure(atoms)
+
+        film_structure = _load_pmg(film_fp).to_conventional()
+        substrate_structure = _load_pmg(substrate_fp).to_conventional()
+
+        cib = CoherentInterfaceBuilder(
+            substrate_structure=substrate_structure,
+            film_structure=film_structure,
+            film_miller=tuple(int(x) for x in film_miller),
+            substrate_miller=tuple(int(x) for x in substrate_miller),
+        )
+
+        results = []
+        collected = 0
+        for t_idx, termination in enumerate(cib.terminations):
+            if collected >= max_interfaces:
+                break
+            interfaces = list(cib.get_interfaces(
+                termination=termination,
+                gap=gap,
+                vacuum_over_film=(vacuum_over_film if vacuum_over_film != 0 else gap),
+                film_thickness=film_thickness,
+                substrate_thickness=substrate_thickness,
+                in_layers=in_layers,
+            ))
+            for iface_idx, interface in enumerate(interfaces):
+                if collected >= max_interfaces:
+                    break
+                wrapped = _fix_pbc(interface)
+                vec_a = interface.lattice.matrix[0]
+                vec_b = interface.lattice.matrix[1]
+                area = float(np.linalg.norm(np.cross(vec_a, vec_b)))
+                try:
+                    poscar_text = wrapped.to(fmt="poscar")
+                except Exception:
+                    poscar_text = None
+                results.append({
+                    "id": f"iface_{collected}",
+                    "von_mises_strain": interface.interface_properties.get("von_mises_strain"),
+                    "termination_index": t_idx,
+                    "interface_index": iface_idx,
+                    "area": area,
+                    "n_atoms": len(interface),
+                    "poscar": poscar_text,
+                })
+                collected += 1
+
+        return JSONResponse({"interfaces": results})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+async def api_structure_build_interfaces_save(request):
+    """POST /api/structure/build-interfaces/save — save a selected interface candidate."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    poscar_text = body.get("poscar", "")
+    filename = str(body.get("filename", "")).strip()
+
+    if not poscar_text:
+        return JSONResponse({"error": "poscar required"}, status_code=400)
+
+    root = sandbox_root()
+
+    if filename:
+        name = Path(filename).name
+        if name in ("", ".", ".."):
+            return JSONResponse({"error": "invalid filename"}, status_code=400)
+        output_path = root / name
+        if not is_path_safe(output_path, root):
+            return JSONResponse({"error": "access denied"}, status_code=403)
+        counter = 1
+        while output_path.exists():
+            output_path = root / f"{Path(name).stem}_{counter}{Path(name).suffix}"
+            counter += 1
+    else:
+        output_path = _output_path_for(root, "interface", Path("structure.vasp"))
+
+    try:
+        import tempfile
+        from ase.io import write as ase_write, read as ase_read
+
+        with tempfile.NamedTemporaryFile(suffix=".vasp", mode="w", delete=False) as tmp:
+            tmp.write(poscar_text)
+            tmp_path = tmp.name
+
+        try:
+            atoms = ase_read(tmp_path, format="vasp")
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+        ase_write(str(output_path), atoms, format="extxyz")
+        data = read_structure(output_path)
+        data["path"] = str(output_path.relative_to(root))
+        return JSONResponse(data)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)

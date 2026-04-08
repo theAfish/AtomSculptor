@@ -998,6 +998,27 @@ export async function buildSupercell(matrix) {
   return data;
 }
 
+export async function buildInterfaces(params) {
+  const resp = await fetch("/api/structure/build-interfaces", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  return parseJsonResponseSafe(resp);
+}
+
+export async function saveInterfaceChoice(poscar, filename) {
+  const resp = await fetch("/api/structure/build-interfaces/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ poscar, filename }),
+  });
+  const data = await parseJsonResponseSafe(resp);
+  if (data.error) return data;
+  applyBuiltStructure(data);
+  return data;
+}
+
 // Listen for viewer-driven open requests (e.g., drag-and-drop onto viewer)
 document.addEventListener("atomsculptor:open-structure", async (event) => {
   try {

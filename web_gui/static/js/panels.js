@@ -23,6 +23,7 @@ import { wireSurfacePanel } from "./surface-panel.js";
 import { wireSupercellPanel } from "./supercell-panel.js";
 import { wireLatticePanel } from "./lattice-panel.js";
 import { wireExportPanel } from "./export-panel.js";
+import { wireInterfacePanel } from "./interface-panel.js";
 
 /** Attach event listeners for all tool-panel toolbar buttons and controls. */
 export function wirePanels() {
@@ -31,4 +32,5 @@ export function wirePanels() {
   wireSupercellPanel();
   wireLatticePanel();
   wireExportPanel();
+  wireInterfacePanel();
 }

@@ -110,6 +110,9 @@
           <button class="tb-btn" id="tb-supercell" data-tip="Build Supercell" aria-label="Build Supercell">
             <span class="icon icon-supercell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 4v8l-7 4-7-4V6l7-4z"/><path d="M5 10l7 4 7-4"/></svg></span>
           </button>
+          <button class="tb-btn" id="tb-interface" data-tip="Build Interface" aria-label="Build Interface">
+            <span class="icon icon-interface"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-5 9 5v3l-9 5-9-5V8z"/><line x1="3" y1="13" x2="21" y2="13"/><path d="M3 13l9 5 9-5v3l-9 5-9-5v-3z"/></svg></span>
+          </button>
           <button class="tb-btn" id="tb-lattice" data-tip="Lattice Operations" aria-label="Lattice Operations">
             <span class="icon icon-lattice"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="5" r="1.5" class="filled"/><circle cx="12" cy="5" r="1.5" class="filled"/><circle cx="19" cy="5" r="1.5" class="filled"/><circle cx="5" cy="12" r="1.5" class="filled"/><circle cx="12" cy="12" r="1.5" class="filled"/><circle cx="19" cy="12" r="1.5" class="filled"/><circle cx="5" cy="19" r="1.5" class="filled"/><circle cx="12" cy="19" r="1.5" class="filled"/><circle cx="19" cy="19" r="1.5" class="filled"/></svg></span>
           </button>
@@ -185,7 +188,7 @@
                 <button id="ketcher-cancel" class="tool-panel-btn">Cancel</button>
               </div>
             </div>
-            <iframe id="ketcher-frame" sandbox="allow-scripts"></iframe>
+            <iframe id="ketcher-frame" sandbox="allow-scripts allow-same-origin"></iframe>
           </div>
 
           <!-- Surface builder panel -->
@@ -313,6 +316,73 @@
               <button id="ex-cancel" type="button" class="ex-dlg-btn">Cancel</button>
             </div>
           </dialog>
+
+          <!-- Interface builder panel -->
+          <div id="interface-panel" class="tool-panel if-panel">
+            <div class="if-dlg-title">Build Interface</div>
+            <div class="if-two-col">
+              <div class="if-col">
+                <div class="if-col-header">Film</div>
+                <label class="if-label" for="if-film-path">Structure file</label>
+                <select id="if-film-path" class="if-select">
+                  <option value="">— select file —</option>
+                </select>
+                <label class="if-label">Miller indices (h k l)</label>
+                <div class="if-miller-row">
+                  <input id="if-fh" type="number" value="1" min="-9" max="9" step="1" class="if-miller-input"/>
+                  <input id="if-fk" type="number" value="0" min="-9" max="9" step="1" class="if-miller-input"/>
+                  <input id="if-fl" type="number" value="0" min="-9" max="9" step="1" class="if-miller-input"/>
+                </div>
+                <label class="if-label" for="if-film-thick">Thickness (layers)</label>
+                <input id="if-film-thick" type="number" value="3" min="1" max="20" step="1" class="if-param-input"/>
+              </div>
+              <div class="if-col">
+                <div class="if-col-header">Substrate</div>
+                <label class="if-label" for="if-substrate-path">Structure file</label>
+                <select id="if-substrate-path" class="if-select">
+                  <option value="">— select file —</option>
+                </select>
+                <label class="if-label">Miller indices (h k l)</label>
+                <div class="if-miller-row">
+                  <input id="if-sh" type="number" value="1" min="-9" max="9" step="1" class="if-miller-input"/>
+                  <input id="if-sk" type="number" value="0" min="-9" max="9" step="1" class="if-miller-input"/>
+                  <input id="if-sl" type="number" value="0" min="-9" max="9" step="1" class="if-miller-input"/>
+                </div>
+                <label class="if-label" for="if-sub-thick">Thickness (layers)</label>
+                <input id="if-sub-thick" type="number" value="3" min="1" max="20" step="1" class="if-param-input"/>
+              </div>
+            </div>
+            <div class="if-params">
+              <div class="if-param-group">
+                <label class="if-label" for="if-gap">Gap (Å)</label>
+                <input id="if-gap" type="number" value="2.0" min="0.5" max="20" step="0.5" class="if-param-input"/>
+              </div>
+              <div class="if-param-group">
+                <label class="if-label" for="if-vacuum">Vacuum (Å)</label>
+                <input id="if-vacuum" type="number" value="10.0" min="0" max="50" step="0.5" class="if-param-input"/>
+              </div>
+              <div class="if-param-group">
+                <label class="if-label" for="if-max">Max candidates</label>
+                <input id="if-max" type="number" value="10" min="1" max="100" step="1" class="if-param-input"/>
+              </div>
+              <div class="if-param-group if-param-check">
+                <label class="if-label">
+                  <input id="if-in-layers" type="checkbox" checked/>
+                  Thickness in layers
+                </label>
+              </div>
+            </div>
+            <div class="if-actions-top">
+              <button id="if-generate" type="button" class="if-btn primary">Generate</button>
+            </div>
+            <label class="if-label">Candidates</label>
+            <div id="if-candidates" class="if-candidates"></div>
+            <div id="if-error" class="if-error"></div>
+            <div class="if-actions-bottom">
+              <button id="if-open" type="button" class="if-btn primary" disabled>Open Selected</button>
+              <button id="if-cancel" type="button" class="if-btn">Cancel</button>
+            </div>
+          </div>
 
           <div id="atom-info">
             <div class="ai-title" id="ai-title">Atom</div>

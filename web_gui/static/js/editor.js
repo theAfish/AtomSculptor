@@ -20,6 +20,7 @@ import {
   setSelectedAtomsSymbol,
   undoStructureEdit,
   updateStatusBar,
+  wrapAtomsToBoundary,
   LAYERS_CHANGED_EVENT,
 } from "./structure.js";
 import { updateGizmo, nudgeTransform, isGizmoActive } from "./gizmo.js";
@@ -474,9 +475,8 @@ export function wireToolbar() {
     closeAllPanels();
     saveStructure();
   });
-  $("#tb-delete").addEventListener("click", () => {
-    if (S.mode === "delete") { deleteSelected(); updateGizmo(); }
-    else setMode("delete");
+  $("#tb-wrap").addEventListener("click", () => {
+    wrapAtomsToBoundary();
   });
 }
 
@@ -517,7 +517,6 @@ export function wireKeyboardShortcuts() {
     if (e.key === "1") { setMode("orbit"); return; }
     if (e.key === "2") { setMode("box"); return; }
     if (e.key === "5") { toggleAddPanel(); return; }
-    if (e.key === "6") { setMode("delete"); return; }
 
     if (!e.ctrlKey && !e.metaKey) {
       if (e.key.toLowerCase() === "t") { setMode("translate"); return; }

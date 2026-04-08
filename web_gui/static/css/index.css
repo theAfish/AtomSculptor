@@ -989,7 +989,24 @@ body.col-dragging { cursor: col-resize !important; user-select: none; }
   border-color: var(--accent) !important;
   background: color-mix(in srgb, var(--accent) 12%, var(--bg1)) !important;
 }
-.tool-panel-actions {
+  .la-mode-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .la-mode-label input[type="radio"] {
+    margin: 0;
+  }
+  .sc-matrix-input:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .sc-matrix-diag:disabled {
+    border-color: var(--border) !important;
+    background: var(--bg1) !important;
+  }
+  .tool-panel-actions {
   display: flex;
   gap: 6px;
   margin-top: 4px;

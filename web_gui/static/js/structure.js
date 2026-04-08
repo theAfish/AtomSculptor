@@ -661,6 +661,70 @@ export function applyLattice(realMatrix, scaleAtoms) {
   recordStructureEdit(beforeState);
 }
 
+export function wrapAtomsToBoundary() {
+  if (!S.atoms.length) return;
+  const cell = Array.isArray(S.cell) && S.cell.length === 3 ? S.cell : null;
+  if (!cell) return;
+
+  const [a, b, c] = cell;
+  const det =
+    a[0] * (b[1] * c[2] - b[2] * c[1]) -
+    a[1] * (b[0] * c[2] - b[2] * c[0]) +
+    a[2] * (b[0] * c[1] - b[1] * c[0]);
+  if (Math.abs(det) < 1e-12) return;
+
+  const invDet = 1 / det;
+  // Inverse of the row-vector cell matrix.
+  const invCell = [
+    [(b[1] * c[2] - b[2] * c[1]) * invDet, (a[2] * c[1] - a[1] * c[2]) * invDet, (a[1] * b[2] - a[2] * b[1]) * invDet],
+    [(b[2] * c[0] - b[0] * c[2]) * invDet, (a[0] * c[2] - a[2] * c[0]) * invDet, (a[2] * b[0] - a[0] * b[2]) * invDet],
+    [(b[0] * c[1] - b[1] * c[0]) * invDet, (a[1] * c[0] - a[0] * c[1]) * invDet, (a[0] * b[1] - a[1] * b[0]) * invDet],
+  ];
+
+  const eps = 1e-10;
+  let moved = false;
+
+  const toFractional = (x, y, z) => [
+    x * invCell[0][0] + y * invCell[1][0] + z * invCell[2][0],
+    x * invCell[0][1] + y * invCell[1][1] + z * invCell[2][1],
+    x * invCell[0][2] + y * invCell[1][2] + z * invCell[2][2],
+  ];
+
+  const toCartesian = (s, t, u) => [
+    s * cell[0][0] + t * cell[1][0] + u * cell[2][0],
+    s * cell[0][1] + t * cell[1][1] + u * cell[2][1],
+    s * cell[0][2] + t * cell[1][2] + u * cell[2][2],
+  ];
+
+  const wrapFrac = (f) => {
+    if (f >= -eps && f < 1 - eps) return f;
+    const wrapped = f - Math.floor(f);
+    return wrapped >= 1 - eps ? 0 : wrapped;
+  };
+
+  const beforeState = snapshotStructureState();
+
+  for (const atom of S.atoms) {
+    const [s, t, u] = toFractional(atom.x, atom.y, atom.z);
+    const sw = wrapFrac(s);
+    const tw = wrapFrac(t);
+    const uw = wrapFrac(u);
+    if (Math.abs(sw - s) < eps && Math.abs(tw - t) < eps && Math.abs(uw - u) < eps) continue;
+    const [xw, yw, zw] = toCartesian(sw, tw, uw);
+    atom.x = xw;
+    atom.y = yw;
+    atom.z = zw;
+    moved = true;
+  }
+
+  if (!moved) return;
+
+  rebuildScene();
+  updateStatusBar();
+  emitLayersChanged();
+  recordStructureEdit(beforeState);
+}
+
 export function setSelectedAtomLayers(layerIds) {
   normalizeLayerState();
   const atomLayerMap = getAtomLayerMap();

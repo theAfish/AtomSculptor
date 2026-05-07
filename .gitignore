@@ -4,12 +4,15 @@ __pycache__/
 
 .env
 
+.mplconfig/
+
 session.db
 .adk/
 
 # sandbox
 .runtime/
 .sandbox_control/
+.benchmark/
 
 # web
 dist/

@@ -89,11 +89,10 @@ class Sandbox:
             merged_env.update(env)
 
         run_cwd = Path(cwd).expanduser().resolve() if cwd is not None else self.root_dir
-        shell_cmd = f'srt --settings "{self.settings_path}" {command}'
+        srt_args = ["srt", "--settings", str(self.settings_path), "bash", "-lc", command]
 
         result = subprocess.run(
-            shell_cmd,
-            shell=True,
+            srt_args,
             cwd=str(run_cwd),
             env=merged_env,
             text=True,
@@ -149,7 +148,7 @@ class Sandbox:
                 "allowedDomains": [
                     "api.materialsproject.org",
                     "*.materialsproject.org",
-                    
+                    "*.bohrium.tech"
                 ],
                 "deniedDomains": [],
             },

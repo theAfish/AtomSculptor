@@ -24,7 +24,7 @@ _sandbox_client: Sandbox | None = None
 def _client() -> Sandbox:
     global _sandbox_client
     if _sandbox_client is None:
-        _sandbox_client = Sandbox(settings.SANDBOX_DIR)
+        _sandbox_client = Sandbox(**settings.get_sandbox_client_kwargs())
     return _sandbox_client
 
 

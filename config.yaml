@@ -10,6 +10,17 @@ AGGREGATOR_MODEL: "openai/glm-5"
 # local directory used by sandbox runtime wrapper
 SANDBOX_DIR: "sandbox/.runtime"
 
+# domains the sandboxed agent is allowed to reach over the network.
+# wildcards like "*.example.com" are supported. "host.internal" refers to the
+# host machine (resolved via /etc/hosts on Linux/WSL, automatic on macOS).
+SANDBOX_ALLOWED_DOMAINS:
+  - api.materialsproject.org
+  - "*.materialsproject.org"
+  - host.internal
+
+# domains explicitly blocked even if matched by allowedDomains.
+SANDBOX_DENIED_DOMAINS: []
+
 # ======== Code-graph-rag / Memgraph settings ========
 MEMGRAPH_HOST: "localhost"
 MEMGRAPH_PORT: 7687

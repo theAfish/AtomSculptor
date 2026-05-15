@@ -19,6 +19,8 @@ class Sandbox:
         clear_existing: bool = False,
         settings_path: str | Path | None = None,
         config: dict[str, Any] | None = None,
+        allowed_domains: Iterable[str] | None = None,
+        denied_domains: Iterable[str] | None = None,
         auto_install_srt: bool = False,
     ) -> None:
         self.root_dir = Path(root_dir).expanduser().resolve()
@@ -30,6 +32,12 @@ class Sandbox:
             else self.control_dir / "srt-settings.json"
         )
         self._config_override = config
+        self._allowed_domains = (
+            list(allowed_domains) if allowed_domains is not None else None
+        )
+        self._denied_domains = (
+            list(denied_domains) if denied_domains is not None else None
+        )
         self._auto_install_srt = auto_install_srt
 
         if clear_existing and self.root_dir.exists():
@@ -144,14 +152,21 @@ class Sandbox:
         if self._config_override is not None:
             return self._config_override
 
+        allowed = (
+            self._allowed_domains
+            if self._allowed_domains is not None
+            else [
+                "api.materialsproject.org",
+                "*.materialsproject.org",
+                "host.internal",
+            ]
+        )
+        denied = self._denied_domains if self._denied_domains is not None else []
+
         return {
             "network": {
-                "allowedDomains": [
-                    "api.materialsproject.org",
-                    "*.materialsproject.org",
-                    "host.internal"
-                ],
-                "deniedDomains": [],
+                "allowedDomains": list(allowed),
+                "deniedDomains": list(denied),
             },
             "filesystem": {
                 "denyRead": [str(self.control_dir)],

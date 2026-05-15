@@ -8,7 +8,7 @@ from settings import settings
 
 patch_litellm_tool_argument_parsing()
 
-sandbox = Sandbox(settings.SANDBOX_DIR)
+sandbox = Sandbox(**settings.get_sandbox_client_kwargs())
 sandbox.add_agent([planner, structure_builder, mp_searcher])
 
 root_agent = atom_sculptor

@@ -1,49 +1,37 @@
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
 
-
-from sandbox.tools import (
-    sandbox_status,
-    sandbox_run_command,
-)
-from agent_team.tools.state_management_tools import (
-    change_state,
-)
-from agent_team.tools.planning_tools import (
-    reset_plan,
-    create_plan,
-    revise_plan,
-    get_plan_summary,
-    start_task,
-    complete_task,
-    is_plan_finished
-)
-from agent_team.tools.memory_tools import (
-    write_notes,
-    rewrite_notes,
-)
-from agent_team.tools.ddgs_search_tools import (
-    web_search,
-    web_search_news,
-)
-from settings import settings
-from agent_team.agents.structure_builder import structure_builder
 from agent_team.agents.mp_searcher import mp_searcher
-from sandbox.runtime_paths import sandbox_root
-from agent_team.utils.resource_trees import build_resource_trees
-
-SANDBOX_INSTRUCTION_PATH = "instructions/"
-SANDBOX_TOOLBOX_DIR = "toolbox/"
-
-RESOURCE_DIR_TREES = build_resource_trees(
-    runtime_root=sandbox_root(),
-    toolbox_path=SANDBOX_TOOLBOX_DIR,
-    instructions_path=SANDBOX_INSTRUCTION_PATH,
+from agent_team.agents.structure_builder import structure_builder
+from agent_team.skills import list_skills, read_skill
+from agent_team.tools.ddgs_search_tools import web_search, web_search_news
+from agent_team.tools.memory_tools import rewrite_notes, write_notes
+from agent_team.tools.planning_tools import (
+    complete_task,
+    create_plan,
+    get_plan_summary,
+    is_plan_finished,
+    reset_plan,
+    revise_plan,
+    start_task,
 )
+from agent_team.tools.state_management_tools import change_state
+from sandbox.tools import sandbox_run_command, sandbox_status
+from settings import settings
 
-# You have two specialist sub-agents available:
-# - **structure_builder**: For building and manipulating atomic structures using ASE
-# - **mp_searcher**: For searching and downloading materials from Materials Project
+
+def _format_skill_index() -> str:
+    skills = list_skills()["skills"]
+    if not skills:
+        return "(no skills installed)"
+    lines = []
+    for entry in skills:
+        kind = "runnable" if entry["runnable"] else "instruction"
+        lines.append(f"- {entry['name']} ({kind}) — {entry['description']}")
+    return "\n".join(lines)
+
+
+SKILL_INDEX = _format_skill_index()
 
 agent_description = "Planner that manages a specialized team of agents for materials science and code analysis tasks."
 agent_instruction = f"""
@@ -54,7 +42,7 @@ You are the Planner orchestrating a specialized team for materials science resea
 2. For tasks requiring sub-agents:
 - Properly set the session state
 - Propose plans using `create_plan` and `revise_plan` tools
-- Decide the tools and instructions for the sub-agents.
+- Decide which **skills** the sub-agents should use (`list_skills` / `read_skill`)
 - Construct and update plans iteratively based on results and feedback
 - Dynamically delegate to sub-agents as needed, using the `current_stage` state to manage workflow
 - Finish all the tasks indicate the user's request is complete
@@ -69,18 +57,13 @@ You are the Planner orchestrating a specialized team for materials science resea
 - Only do this if you're delegating to sub-agents and want the full modelling workflow
 - For simple sub-agent calls during planning, you don't need to change the stage
 
+**Skill index** (sub-agents discover the same skills via `list_skills`):
+{SKILL_INDEX}
 
-**Remember to check and plan which tools the subagents should use and which instructions they should refer to**; these are located in `{SANDBOX_TOOLBOX_DIR}` and `{SANDBOX_INSTRUCTION_PATH}`, respectively.
-Use the `sandbox_run_command` to read the [tool]_doc.md, or check the tools with `python {SANDBOX_TOOLBOX_DIR}/tool_name.py -h` to understand the functions, required arguments, and usage.
-Resource directory trees (use these names/locations when planning):
-```
-{RESOURCE_DIR_TREES}
-```
+Use `read_skill(name)` to inspect a skill's SKILL.md before instructing a sub-agent
+to apply it.
 """
 
-# When invoking tools, arguments must be valid JSON.
-# - Use double quotes for every object key and every string value.
-# - Never emit Python dict syntax such as {'task': 'value'}.
 
 planner = Agent(
     model=LiteLlm(settings.PLANNER_MODEL),
@@ -102,6 +85,8 @@ planner = Agent(
         rewrite_notes,
         web_search,
         web_search_news,
+        list_skills,
+        read_skill,
     ],
     sub_agents=[structure_builder, mp_searcher],
     output_key="last_planner_result",

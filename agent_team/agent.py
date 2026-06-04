@@ -4,23 +4,11 @@ from agent_team.agents.structure_builder import structure_builder
 from agent_team.agents.mp_searcher import mp_searcher
 from agent_team.agents.atom_sculptor import atom_sculptor
 from sandbox import Sandbox
-from sandbox.toolbox_launchers import materialize_runtime_toolbox
 from settings import settings
-from pathlib import Path
-
-def ensure_toolbox_in_runtime() -> None:
-    runtime_dir = Path(settings.SANDBOX_DIR)
-
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    materialize_runtime_toolbox(runtime_dir)
-
 
 patch_litellm_tool_argument_parsing()
 
-sandbox = Sandbox(settings.SANDBOX_DIR)
+sandbox = Sandbox(**settings.get_sandbox_client_kwargs())
 sandbox.add_agent([planner, structure_builder, mp_searcher])
-
-
-ensure_toolbox_in_runtime()
 
 root_agent = atom_sculptor

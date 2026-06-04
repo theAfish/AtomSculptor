@@ -86,6 +86,20 @@ python main.py --web
 python main.py
 # or equivalently:
 adk run agent_team
+
+# AtomWorldBench client adapter
+# Connect AtomSculptor to an existing local or remote AtomWorldBench server:
+python scripts/run_atomworld_benchmark.py \
+	--base-url http://localhost:8000 \
+	--api-key mykey \
+	--action-name add_atom_action \
+	--limit 100
+
+# Or attach to an already-created benchmark session:
+python scripts/run_atomworld_benchmark.py \
+	--base-url http://localhost:8000 \
+	--api-key mykey \
+	--session-id your-existing-session-id
 ```
 
 ---

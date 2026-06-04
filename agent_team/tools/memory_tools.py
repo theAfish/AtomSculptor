@@ -8,7 +8,6 @@ from google.adk.tools.tool_context import ToolContext
 # Resolve from this file location so behavior is stable regardless of cwd.
 memory_path = Path(__file__).resolve().parents[1] / "memories" 
 notes_path = memory_path / "notes"
-instructions_path = memory_path / "instructions"
 
 
 def _resolve_note_file(file_name: str) -> Path | None:
@@ -141,8 +140,12 @@ def read_note_file(file_name: str, tool_context: ToolContext) -> dict:
     return {"content": content}
 
 
-def _delete_marked_notes(tool_context: ToolContext) -> dict:
-    """Delete notes previously marked as read in this session."""
+def cleanup_marked_notes(tool_context: ToolContext) -> dict:
+    """Delete notes previously marked as read in this session.
+
+    Call this after a skill has been created/updated from the notes content,
+    so the source notes are no longer reprocessed in future sessions.
+    """
     notes_path.mkdir(parents=True, exist_ok=True)
 
     marked_notes = tool_context.session.state.get("marked_read_notes", [])
@@ -190,67 +193,3 @@ def _delete_marked_notes(tool_context: ToolContext) -> dict:
     }
 
 
-def read_instruction(tool_context: ToolContext, instruction_file: str) -> dict:
-    """Read the contents of a specific instruction file."""
-    instructions_path.mkdir(parents=True, exist_ok=True)
-    candidate = Path(instruction_file.strip())
-    if not candidate.is_absolute():
-        candidate = instructions_path / candidate
-
-    try:
-        resolved = candidate.resolve()
-        resolved.relative_to(instructions_path.resolve())
-    except (ValueError, OSError):
-        return {"error": f"Invalid instruction file path: {instruction_file}"}
-
-    if not resolved.exists() or not resolved.is_file():
-        return {"error": f"Instruction file not found: {instruction_file}"}
-    
-    with resolved.open("r", encoding="utf-8") as f:
-        content = f.read()
-
-    return {"content": content}
-
-def write_instructions(instruction_contents: str, instruction_file: str, overwrite: bool, tool_context: ToolContext) -> dict:
-    """Write instructions to a file. The notes read will be automatically cleaned up after writing instructions."""
-    if not instruction_contents or not instruction_contents.strip():
-        return {"error": "instruction_contents must be a non-empty string"}
-
-    instructions_path.mkdir(parents=True, exist_ok=True)
-
-    instruction_file_path = instructions_path / instruction_file
-
-    if instruction_file_path.exists() and not overwrite:
-        return {"error": f"Instruction file already exists: {instruction_file}"}
-
-    with instruction_file_path.open("w", encoding="utf-8") as f:
-        f.write(instruction_contents.rstrip() + "\n")
-
-    cleanup_result = _delete_marked_notes(tool_context)
-    return {
-        "message": "Instructions written.",
-        "cleanup": cleanup_result,
-    }
-
-def remove_outdated_instruction(instruction_file: str, tool_context: ToolContext) -> dict:
-    """Remove an instruction file that is no longer relevant, or can be included in other instructions."""
-    instructions_path.mkdir(parents=True, exist_ok=True)
-    candidate = Path(instruction_file.strip())
-    if not candidate.is_absolute():
-        candidate = instructions_path / candidate
-
-    try:
-        resolved = candidate.resolve()
-        resolved.relative_to(instructions_path.resolve())
-    except (ValueError, OSError):
-        return {"error": f"Invalid instruction file path: {instruction_file}"}
-
-    if not resolved.exists() or not resolved.is_file():
-        return {"error": f"Instruction file not found: {instruction_file}"}
-
-    try:
-        resolved.unlink()
-        return {"message": f"Instruction file '{instruction_file}' removed."}
-    except OSError as e:
-        return {"error": f"Failed to remove instruction file: {str(e)}"}
-    

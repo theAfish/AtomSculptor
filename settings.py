@@ -77,6 +77,17 @@ class Settings:
         self.SANDBOX_DIR = os.environ.get(
             "SANDBOX_DIR", self._data.get("SANDBOX_DIR", "sandbox/.runtime")
         )
+        self.SANDBOX_ALLOWED_DOMAINS: list[str] = self._data.get(
+            "SANDBOX_ALLOWED_DOMAINS",
+            [
+                "api.materialsproject.org",
+                "*.materialsproject.org",
+                "host.internal",
+            ],
+        )
+        self.SANDBOX_DENIED_DOMAINS: list[str] = self._data.get(
+            "SANDBOX_DENIED_DOMAINS", []
+        )
 
         # Code-graph-rag settings
         self.MEMGRAPH_HOST = os.environ.get(
@@ -172,7 +183,11 @@ class Settings:
         )
 
     def get_sandbox_client_kwargs(self) -> Dict[str, Any]:
-        return {"root_dir": self.SANDBOX_DIR}
+        return {
+            "root_dir": self.SANDBOX_DIR,
+            "allowed_domains": list(self.SANDBOX_ALLOWED_DOMAINS),
+            "denied_domains": list(self.SANDBOX_DENIED_DOMAINS),
+        }
 
 
 # a single, project-wide settings object that can be imported anywhere

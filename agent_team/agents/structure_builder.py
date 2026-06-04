@@ -1,64 +1,62 @@
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
-from google.adk.agents.callback_context import CallbackContext  
-from google.genai import types  
-from typing import Optional  
 
+from agent_team.skills import (
+    create_skill,
+    install_skill_deps,
+    list_skills,
+    promote_skill,
+    read_skill,
+    run_skill,
+)
 from agent_team.tools.code_graph_tools import ask_code_graph_local
-from agent_team.tools.tools_creation import (
-    create_toolbox_tool,
-    list_toolbox_tools,
-    validate_toolbox_tool,
-)
-from sandbox.tools import (
-    sandbox_run_command,
-)
 from agent_team.tools.planning_tools import (
     complete_task,
-    start_task,
     get_plan_summary,
     is_plan_finished,
+    start_task,
 )
+from sandbox.tools import sandbox_run_command
 from settings import settings
-
-TOOLBOX_DIR = "toolbox/structure_modelling"
-
 
 
 agent_description = "Structure Builder Agent specializing in atomic simulations and structure manipulations."
-agent_instruction = f"""
-You are an expert in atomic modelling using Python, ASE, RDKit, and Pymatgen. 
-Your tasks are to build and manipulate atomic structures based on user requests and planner instructions, such as building surfaces, interfaces, supercells, etc.
+agent_instruction = """
+You are an expert in atomic modelling using Python, ASE, RDKit, and Pymatgen.
+You build and manipulate atomic structures based on user requests and planner
+instructions (surfaces, interfaces, supercells, defects, nanostructures, ...).
 
-Advanced structure building CLI such as interface building are available inside `{TOOLBOX_DIR}` for complex tasks. Inside the sandbox, run them with `python3`, for example `python3 {TOOLBOX_DIR}/structure_tools.py ...`. Check the `[tool]_doc.md` inside the folder for details.
-**Always check the toolbox first before writing codes from scratch.**
+## Skills are your toolbox
 
-You can use the sandbox_run_command in the runtime sandbox when coding or file operations are requested.
+Domain capabilities are packaged as **skills** — self-contained folders with a
+`SKILL.md` (frontmatter + instructions), optional `scripts/` (runnable),
+`references/` (deeper docs loaded on demand), and `requirements.txt`.
 
-## Creating New Tools
+Required workflow:
 
-When the user asks you to create a reusable tool, or when you need a tool that doesn't exist yet, use the `create_toolbox_tool` function. Provide:
-- `group`: toolbox group (e.g. "structure_modelling", "analysis", or a new group name)
-- `tool_name`: a snake_case name for the tool (e.g. "geometry_tools")
-- `description`: a short one-line description
-- `code`: the Python source code with your imports and function definitions
+1. Call `list_skills` first. Read each entry's `description` and `when_to_use`
+   to decide which skills apply.
+2. Call `read_skill(name)` to load the SKILL.md before acting.
+3. For *progressive disclosure*, only after reading SKILL.md, call
+   `read_skill(name, "references/<file>.md")` (or `scripts/<file>.py`) to pull
+   in extra detail you actually need. Do not load every reference up front.
+4. For runnable skills, call `run_skill(name, args)`. Dependencies declared
+   in the skill's `requirements.txt` are installed automatically on first use.
+   You can also call `install_skill_deps(name)` explicitly.
+5. If a needed capability does not exist as a skill, create one with
+   `create_skill` (supply `name`, `description`, `when_to_use`, optional
+   `entry`, `scripts`, `references`, `requirements`). Once it has proven
+   useful, call `promote_skill(name)` to ship it in the built-in library.
 
-Each public function (not starting with `_`) becomes a CLI sub-command automatically.
-Functions must accept simple types (str, int, float, bool, list, dict) and return a dict.
+## General coding
 
-The following sandbox utilities are auto-imported in generated tools:
-- `sandbox_root()`, `sandbox_output_dir()`, `resolve_output_path(name)`, `display_path(path)`
+Use `sandbox_run_command` for ad-hoc code or file operations inside the runtime
+sandbox. Ask the code graph (`ask_code_graph_local`) when you need usage
+examples for PyMatgen, ASE, RDKit, etc., or when debugging.
 
-After creating a tool, use `validate_toolbox_tool` to confirm it works, then use it via `sandbox_run_command`.
-Use `list_toolbox_tools` to see all available default and custom tools.
-
-Also, you can ask the code graph for usage about packages like PyMatgen, ASE, RDKit, etc. using the ask_code_graph_local tool if needed.
-If you are not sure, or get errors while writing codes, ask the code graph for help.
-
-Save the structures in only one format (default to .extxyz or .xyz), and do not render or visualize the structures if not directly required.
+Save structures in only one format (default `.extxyz` or `.xyz`); do not
+render or visualize unless directly required.
 """
-
-# clean up any temporary files you created during the process, and only return the final structure file path or relevant information to the user.
 
 
 structure_builder = Agent(
@@ -67,11 +65,17 @@ structure_builder = Agent(
     description=agent_description,
     instruction=agent_instruction,
     tools=[
+        # Skill system
+        list_skills,
+        read_skill,
+        run_skill,
+        install_skill_deps,
+        create_skill,
+        promote_skill,
+        # General coding / sandbox
         ask_code_graph_local,
         sandbox_run_command,
-        create_toolbox_tool,
-        list_toolbox_tools,
-        validate_toolbox_tool,
+        # Planning
         get_plan_summary,
         start_task,
         complete_task,

@@ -1,6 +1,5 @@
 import base64
 import os
-import shlex
 import subprocess
 from pathlib import Path
 
@@ -27,10 +26,9 @@ def _sandbox_root() -> Path:
 def _run_args(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     sandbox = _sandbox_client()
     sandbox.ensure_runtime()
-    command_str = shlex.join(args)
 
     result = subprocess.run(
-        ["srt", "--settings", str(sandbox.settings_path), command_str],
+        ["srt", "--settings", str(sandbox.settings_path), *args],
         cwd=str(sandbox.root_dir),
         text=True,
         capture_output=True,
@@ -220,11 +218,10 @@ def sandbox_run_command(command: str, timeout_seconds: int = 30) -> dict:
     sandbox.ensure_runtime()
 
     args = ["bash", "-lc", command]
-    command_str = shlex.join(args)
 
     try:
         result = subprocess.run(
-            ["srt", "--settings", str(sandbox.settings_path), command_str],
+            ["srt", "--settings", str(sandbox.settings_path), *args],
             cwd=str(sandbox.root_dir),
             text=True,
             capture_output=True,
